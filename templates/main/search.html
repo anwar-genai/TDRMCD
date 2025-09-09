@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results - TDRMCD{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Search Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center mb-3">
+                <h2 class="mb-0 me-3">
+                    <i class="fas fa-search me-2"></i>Search Results
+                </h2>
+                {% if query %}
+                <span class="badge bg-primary fs-6">"{{ query }}"</span>
+                {% endif %}
+            </div>
+            
+            <!-- Search Form -->
+            <form class="row g-3" method="GET" action="{{ url_for('main.search') }}">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="q" 
+                               placeholder="Search resources, posts, and more..." 
+                               value="{{ query }}" required>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" name="category">
+                        <option value="all" {% if category == 'all' %}selected{% endif %}>All Categories</option>
+                        <option value="minerals" {% if category == 'minerals' %}selected{% endif %}>Minerals</option>
+                        <option value="agriculture" {% if category == 'agriculture' %}selected{% endif %}>Agriculture</option>
+                        <option value="wildlife" {% if category == 'wildlife' %}selected{% endif %}>Wildlife</option>
+                        <option value="cultural" {% if category == 'cultural' %}selected{% endif %}>Cultural</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if query %}
+        <!-- Search Results Summary -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Found {{ resources.total if resources else 0 }} resources and {{ posts|length }} community posts for "{{ query }}"
+                </div>
+            </div>
+        </div>
+
+        <!-- Resources Results -->
+        {% if resources and resources.items %}
+        <div class="row mb-5">
+            <div class="col-12">
+                <h4 class="fw-bold mb-3">
+                    <i class="fas fa-gem me-2"></i>Resources ({{ resources.total }})
+                </h4>
+                
+                <div class="row">
+                    {% for resource in resources.items %}
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="card resource-card h-100 shadow-sm">
+                            {% if resource.image_url %}
+                            <img src="{{ url_for('static', filename='uploads/' + resource.image_url) }}" 
+                                 class="card-img-top" alt="{{ resource.title }}" style="height: 200px; object-fit: cover;">
+                            {% else %}
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                <i class="fas fa-image fa-3x text-muted"></i>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-primary">{{ resource.category.title() }}</span>
+                                    {% if resource.location %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ resource.location }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                                
+                                <h5 class="card-title">{{ resource.title }}</h5>
+                                <p class="card-text text-muted">
+                                    {{ resource.description[:100] }}{% if resource.description|length > 100 %}...{% endif %}
+                                </p>
+                                
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        By {{ resource.author.get_full_name() }}
+                                    </small>
+                                    <a href="{{ url_for('resources.detail', id=resource.id) }}" class="btn btn-sm btn-outline-primary">
+                                        View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Resources Pagination -->
+                {% if resources.pages > 1 %}
+                <nav aria-label="Resources pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if resources.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.search', q=query, category=category, page=resources.prev_num) }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for p in resources.iter_pages() %}
+                            {% if p %}
+                                {% if p == resources.page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ p }}</span>
+                                </li>
+                                {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.search', q=query, category=category, page=p) }}">{{ p }}</a>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if resources.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.search', q=query, category=category, page=resources.next_num) }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Community Posts Results -->
+        {% if posts %}
+        <div class="row mb-5">
+            <div class="col-12">
+                <h4 class="fw-bold mb-3">
+                    <i class="fas fa-comments me-2"></i>Community Posts ({{ posts|length }})
+                </h4>
+                
+                <div class="list-group">
+                    {% for post in posts %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">
+                                <a href="{{ url_for('community.post_detail', id=post.id) }}" class="text-decoration-none">
+                                    {{ post.title }}
+                                </a>
+                            </h6>
+                            <small class="text-muted">{{ post.created_at.strftime('%b %d, %Y') }}</small>
+                        </div>
+                        <p class="mb-1 text-muted">
+                            {{ post.content[:150] }}{% if post.content|length > 150 %}...{% endif %}
+                        </p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-secondary me-2">{{ post.category.title() }}</span>
+                                <small class="text-muted">
+                                    By {{ post.author.get_full_name() }}
+                                </small>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <small class="text-muted">
+                                    <i class="fas fa-heart me-1"></i>{{ post.likes }}
+                                </small>
+                                <small class="text-muted">
+                                    <i class="fas fa-eye me-1"></i>{{ post.views }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- No Results -->
+        {% if not resources.items and not posts %}
+        <div class="row">
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No results found</h4>
+                    <p class="text-muted">Try adjusting your search terms or browse our categories</p>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <a href="{{ url_for('resources.index') }}" class="btn btn-primary">
+                            <i class="fas fa-gem me-2"></i>Browse Resources
+                        </a>
+                        <a href="{{ url_for('community.index') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-users me-2"></i>Community
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    {% else %}
+        <!-- No Search Query -->
+        <div class="row">
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">Search TDRMCD</h4>
+                    <p class="text-muted">Enter a search term above to find resources, community posts, and more</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-4 mb-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-gem fa-2x text-primary mb-2"></i>
+                                    <h6>Resources</h6>
+                                    <p class="small text-muted">Find minerals, agriculture, wildlife, and cultural resources</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-comments fa-2x text-success mb-2"></i>
+                                    <h6>Community Posts</h6>
+                                    <p class="small text-muted">Search discussions, questions, and announcements</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <i class="fas fa-map-marker-alt fa-2x text-info mb-2"></i>
+                                    <h6>Locations</h6>
+                                    <p class="small text-muted">Find resources by location and geographic area</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.resource-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.resource-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.list-group-item {
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.list-group-item:hover {
+    border-left-color: var(--bs-primary);
+    background-color: rgba(0, 123, 255, 0.05);
+}
+</style>
+{% endblock %}
