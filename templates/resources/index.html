@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Resources - TDRMCD{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="fw-bold">Resource Database</h1>
+            <p class="text-muted">Explore the rich natural and cultural heritage of tribal districts in Khyber Pakhtunkhwa</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('resources.add') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add Resource
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('resources.index') }}" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Category</label>
+                            <select name="category" class="form-select">
+                                <option value="all" {% if current_category == 'all' %}selected{% endif %}>All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category }}" {% if current_category == category %}selected{% endif %}>
+                                    {{ category.title() }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Sort By</label>
+                            <select name="sort" class="form-select">
+                                <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest First</option>
+                                <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>Oldest First</option>
+                                <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Title A-Z</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter me-2"></i>Apply Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Quick Links -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('resources.index') }}" 
+                   class="btn {% if current_category == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="fas fa-th-large me-2"></i>All Resources
+                </a>
+                <a href="{{ url_for('resources.by_category', category='minerals') }}" 
+                   class="btn {% if current_category == 'minerals' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="fas fa-gem me-2"></i>Minerals
+                </a>
+                <a href="{{ url_for('resources.by_category', category='agriculture') }}" 
+                   class="btn {% if current_category == 'agriculture' %}btn-success{% else %}btn-outline-success{% endif %}">
+                    <i class="fas fa-seedling me-2"></i>Agriculture
+                </a>
+                <a href="{{ url_for('resources.by_category', category='wildlife') }}" 
+                   class="btn {% if current_category == 'wildlife' %}btn-info{% else %}btn-outline-info{% endif %}">
+                    <i class="fas fa-paw me-2"></i>Wildlife
+                </a>
+                <a href="{{ url_for('resources.by_category', category='cultural') }}" 
+                   class="btn {% if current_category == 'cultural' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                    <i class="fas fa-landmark me-2"></i>Cultural
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resources Grid -->
+    <div class="row">
+        {% if resources.items %}
+            {% for resource in resources.items %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card resource-card h-100 shadow-sm">
+                    {% if resource.image_url %}
+                    <img src="{{ url_for('static', filename='uploads/' + resource.image_url) }}" 
+                         class="card-img-top" alt="{{ resource.title }}" style="height: 200px; object-fit: cover;">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <i class="fas fa-{{ 'gem' if resource.category == 'minerals' else 'seedling' if resource.category == 'agriculture' else 'paw' if resource.category == 'wildlife' else 'landmark' }} fa-3x text-muted"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-{{ 'primary' if resource.category == 'minerals' else 'success' if resource.category == 'agriculture' else 'info' if resource.category == 'wildlife' else 'warning' }}">
+                                {{ resource.category.title() }}
+                            </span>
+                            {% if resource.location %}
+                            <small class="text-muted">
+                                <i class="fas fa-map-marker-alt me-1"></i>{{ resource.location }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        
+                        <h5 class="card-title">{{ resource.title }}</h5>
+                        <p class="card-text text-muted">
+                            {{ resource.description[:100] }}{% if resource.description|length > 100 %}...{% endif %}
+                        </p>
+                        
+                        {% if resource.subcategory %}
+                        <p class="small mb-2">
+                            <strong>Type:</strong> {{ resource.subcategory.title() }}
+                        </p>
+                        {% endif %}
+                        
+                        {% if resource.economic_value %}
+                        <p class="small mb-2">
+                            <strong>Economic Value:</strong> {{ resource.economic_value }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                By {{ resource.author.get_full_name() }}
+                                <br>{{ resource.created_at.strftime('%B %d, %Y') }}
+                            </small>
+                            <div class="d-flex gap-1">
+                                {% if resource.latitude and resource.longitude %}
+                                <button class="btn btn-sm btn-outline-info" 
+                                        onclick="showOnMap({{ resource.latitude }}, {{ resource.longitude }}, '{{ resource.title }}')"
+                                        data-bs-toggle="tooltip" title="Show on Map">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </button>
+                                {% endif %}
+                                <a href="{{ url_for('resources.detail', id=resource.id) }}" 
+                                   class="btn btn-sm btn-primary">
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No resources found</h4>
+                    <p class="text-muted">
+                        {% if current_category != 'all' %}
+                            No resources found in the "{{ current_category }}" category.
+                        {% else %}
+                            No resources have been added yet.
+                        {% endif %}
+                    </p>
+                    {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('resources.add') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add First Resource
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if resources.pages > 1 %}
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="Resources pagination">
+                <ul class="pagination justify-content-center">
+                    {% if resources.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('resources.index', page=resources.prev_num, category=current_category, sort=current_sort) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in resources.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != resources.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('resources.index', page=page_num, category=current_category, sort=current_sort) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if resources.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('resources.index', page=resources.next_num, category=current_category, sort=current_sort) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Map Modal -->
+<div class="modal fade" id="mapModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Resource Location</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="quickMap" style="height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let quickMap = null;
+
+function showOnMap(lat, lng, title) {
+    const modal = new bootstrap.Modal(document.getElementById('mapModal'));
+    modal.show();
+    
+    // Initialize map when modal is shown
+    document.getElementById('mapModal').addEventListener('shown.bs.modal', function() {
+        if (!quickMap) {
+            quickMap = L.map('quickMap').setView([lat, lng], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(quickMap);
+        } else {
+            quickMap.setView([lat, lng], 12);
+        }
+        
+        // Clear existing markers and add new one
+        quickMap.eachLayer(function(layer) {
+            if (layer instanceof L.Marker) {
+                quickMap.removeLayer(layer);
+            }
+        });
+        
+        L.marker([lat, lng])
+            .addTo(quickMap)
+            .bindPopup(title)
+            .openPopup();
+    });
+}
+
+// Filter form auto-submit
+document.querySelector('select[name="category"]').addEventListener('change', function() {
+    this.form.submit();
+});
+
+document.querySelector('select[name="sort"]').addEventListener('change', function() {
+    this.form.submit();
+});
+</script>
+{% endblock %}

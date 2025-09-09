@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - {{ room_id }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" data-room="{{ room_id }}">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card chat-container">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-hashtag me-2"></i>{{ room_id }}</h5>
+                    <div class="connection-status text-muted small"></div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="chat-messages" id="chat-messages" data-username="{{ current_user.username }}">
+                        {% for m in messages %}
+                        <div class="message {% if m.sender_id == current_user.id %}own{% else %}other{% endif %}">
+                            <div class="message-content">{{ m.content }}</div>
+                            <div class="message-time">{{ m.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="border-top p-3">
+                        <form id="message-form" class="message-form">
+                            <div class="input-group">
+                                <input type="text" class="form-control message-input" placeholder="Type a message..." maxlength="500">
+                                <button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Ensure socket connection exists
+let socket = window.socket || io();
+
+// Join the room
+document.addEventListener('DOMContentLoaded', function() {
+    const roomId = '{{ room_id }}';
+    socket.emit('join_chat', { room: roomId });
+
+    document.getElementById('message-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const input = document.querySelector('.message-input');
+        const text = input.value.trim();
+        if (!text) return;
+        socket.emit('send_message', { room: roomId, message: text });
+        input.value = '';
+    });
+
+    socket.on('receive_message', function(data) {
+        appendMessage(data);
+    });
+});
+
+function appendMessage(data) {
+    const box = document.getElementById('chat-messages');
+    const own = data.username === '{{ current_user.username }}';
+    const div = document.createElement('div');
+    div.className = `message ${own ? 'own' : 'other'}`;
+    div.innerHTML = `<div class="message-content">${TDRMCD.escapeHtml(data.message)}</div><div class="message-time">${data.timestamp}</div>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+}
+</script>
+{% endblock %}
+
+

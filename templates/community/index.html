@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Community Discussions{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0"><i class="fas fa-users me-2"></i>Community</h2>
+        {% if current_user.is_authenticated %}
+        <a class="btn btn-primary" href="{{ url_for('community.create_post') }}">
+            <i class="fas fa-edit me-1"></i>New Post
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form class="row g-3" method="get" action="{{ url_for('community.index') }}">
+                <div class="col-md-4">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="all" {% if current_category == 'all' %}selected{% endif %}>All</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if current_category == cat %}selected{% endif %}>{{ cat.title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Sort By</label>
+                    <select name="sort" class="form-select">
+                        <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest</option>
+                        <option value="oldest" {% if current_sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                        <option value="popular" {% if current_sort == 'popular' %}selected{% endif %}>Most Liked</option>
+                        <option value="most_viewed" {% if current_sort == 'most_viewed' %}selected{% endif %}>Most Viewed</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button class="btn btn-outline-primary w-100" type="submit"><i class="fas fa-filter me-1"></i>Apply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            {% if posts.items %}
+                {% for post in posts.items %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=post.id) }}">
+                                    <h5 class="mb-1">{{ post.title }}</h5>
+                                </a>
+                                <div class="text-muted small">By {{ post.author.get_full_name() }} • {{ post.created_at.strftime('%b %d, %Y') }}</div>
+                            </div>
+                            <span class="badge bg-secondary">{{ post.category.title() }}</span>
+                        </div>
+                        <p class="mt-2 mb-2 text-muted">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                        <div class="d-flex gap-3 text-muted small">
+                            <span><i class="fas fa-heart me-1 text-danger"></i>{{ post.likes }}</span>
+                            <span><i class="fas fa-eye me-1"></i>{{ post.views }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No posts yet.</h5>
+                    {% if current_user.is_authenticated %}
+                    <a class="btn btn-primary mt-2" href="{{ url_for('community.create_post') }}"><i class="fas fa-edit me-1"></i>Create the first post</h5></a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if posts.pages > 1 %}
+    <nav aria-label="Community pagination" class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if posts.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('community.index', page=posts.prev_num, category=current_category, sort=current_sort) }}"><i class="fas fa-chevron-left"></i></a></li>
+            {% endif %}
+            {% for p in posts.iter_pages() %}
+                {% if p %}
+                    {% if p == posts.page %}
+                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('community.index', page=p, category=current_category, sort=current_sort) }}">{{ p }}</a></li>
+                    {% endif %}
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% endif %}
+            {% endfor %}
+            {% if posts.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('community.index', page=posts.next_num, category=current_category, sort=current_sort) }}"><i class="fas fa-chevron-right"></i></a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+

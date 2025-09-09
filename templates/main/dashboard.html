@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - TDRMCD{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Welcome Section -->
+        <div class="col-12 mb-4">
+            <div class="card bg-gradient-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="fw-bold mb-2">Welcome back, {{ current_user.get_full_name() }}!</h2>
+                            <p class="mb-0 opacity-75">
+                                {% if current_user.location %}
+                                    <i class="fas fa-map-marker-alt me-2"></i>{{ current_user.location }}
+                                {% endif %}
+                                <span class="ms-3">
+                                    <i class="fas fa-clock me-2"></i>Last seen: {{ current_user.last_seen.strftime('%B %d, %Y at %I:%M %p') }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="d-flex gap-2 justify-content-md-end">
+                                <a href="{{ url_for('resources.add') }}" class="btn btn-light">
+                                    <i class="fas fa-plus me-2"></i>Add Resource
+                                </a>
+                                <a href="{{ url_for('community.create_post') }}" class="btn btn-outline-light">
+                                    <i class="fas fa-edit me-2"></i>New Post
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stat-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-gem fa-3x text-primary mb-3"></i>
+                    <h3 class="fw-bold text-primary">{{ stats.user_resources }}</h3>
+                    <p class="text-muted mb-0">My Resources</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stat-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-comments fa-3x text-success mb-3"></i>
+                    <h3 class="fw-bold text-success">{{ stats.user_posts }}</h3>
+                    <p class="text-muted mb-0">Community Posts</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stat-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-database fa-3x text-info mb-3"></i>
+                    <h3 class="fw-bold text-info">{{ stats.total_resources }}</h3>
+                    <p class="text-muted mb-0">Total Resources</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card stat-card text-center">
+                <div class="card-body">
+                    <i class="fas fa-bell fa-3x text-warning mb-3"></i>
+                    <h3 class="fw-bold text-warning">{{ stats.unread_notifications }}</h3>
+                    <p class="text-muted mb-0">Notifications</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- My Recent Resources -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-gem me-2"></i>My Recent Resources</h5>
+                    <a href="{{ url_for('resources.add') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add New
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if user_resources %}
+                        {% for resource in user_resources %}
+                        <div class="d-flex align-items-center border-bottom pb-2 mb-2">
+                            <div class="flex-shrink-0 me-3">
+                                {% if resource.image_url %}
+                                <img src="{{ url_for('static', filename='uploads/' + resource.image_url) }}" 
+                                     alt="{{ resource.title }}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
+                                {% else %}
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                    <i class="fas fa-image text-muted"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('resources.detail', id=resource.id) }}" class="text-decoration-none">
+                                        {{ resource.title }}
+                                    </a>
+                                </h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-primary">{{ resource.category.title() }}</span>
+                                    <small class="text-muted">{{ resource.created_at.strftime('%b %d') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('resources.index') }}?author={{ current_user.id }}" class="btn btn-sm btn-outline-primary">
+                                View All My Resources
+                            </a>
+                        </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-gem fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No resources yet</h6>
+                        <p class="text-muted small">Start by adding your first resource to help the community</p>
+                        <a href="{{ url_for('resources.add') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Add First Resource
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- My Recent Posts -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-comments me-2"></i>My Recent Posts</h5>
+                    <a href="{{ url_for('community.create_post') }}" class="btn btn-sm btn-success">
+                        <i class="fas fa-edit me-1"></i>New Post
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if user_posts %}
+                        {% for post in user_posts %}
+                        <div class="border-bottom pb-2 mb-2">
+                            <h6 class="mb-1">
+                                <a href="{{ url_for('community.post_detail', id=post.id) }}" class="text-decoration-none">
+                                    {{ post.title }}
+                                </a>
+                            </h6>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-secondary">{{ post.category.title() }}</span>
+                                    <small class="text-muted">
+                                        <i class="fas fa-heart me-1"></i>{{ post.likes }}
+                                    </small>
+                                    <small class="text-muted">
+                                        <i class="fas fa-eye me-1"></i>{{ post.views }}
+                                    </small>
+                                </div>
+                                <small class="text-muted">{{ post.created_at.strftime('%b %d') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('community.index') }}?author={{ current_user.id }}" class="btn btn-sm btn-outline-success">
+                                View All My Posts
+                            </a>
+                        </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No posts yet</h6>
+                        <p class="text-muted small">Share your thoughts and engage with the community</p>
+                        <a href="{{ url_for('community.create_post') }}" class="btn btn-success">
+                            <i class="fas fa-edit me-2"></i>Create First Post
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications and Quick Actions -->
+    <div class="row">
+        <!-- Recent Notifications -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Recent Notifications</h5>
+                    <button class="btn btn-sm btn-outline-primary" id="mark-all-read">
+                        <i class="fas fa-check me-1"></i>Mark All Read
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        <div class="notifications-list">
+                            {% for notification in notifications %}
+                            <div class="notification-item d-flex align-items-start p-2 border-bottom" 
+                                 data-notification-id="{{ notification.id }}">
+                                <div class="flex-shrink-0 me-3">
+                                    <i class="fas fa-{{ 'check-circle' if notification.notification_type == 'success' else 'info-circle' if notification.notification_type == 'info' else 'exclamation-triangle' if notification.notification_type == 'warning' else 'exclamation-circle' }} 
+                                       text-{{ 'success' if notification.notification_type == 'success' else 'info' if notification.notification_type == 'info' else 'warning' if notification.notification_type == 'warning' else 'danger' }}"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ notification.title }}</h6>
+                                    <p class="mb-1 text-muted small">{{ notification.message }}</p>
+                                    <small class="text-muted">{{ notification.created_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-bell fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No new notifications</h6>
+                        <p class="text-muted small">You're all caught up!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('resources.add') }}" class="btn btn-primary">
+                            <i class="fas fa-gem me-2"></i>Add New Resource
+                        </a>
+                        <a href="{{ url_for('community.create_post') }}" class="btn btn-success">
+                            <i class="fas fa-edit me-2"></i>Create Discussion Post
+                        </a>
+                        <a href="{{ url_for('community.submit_file') }}" class="btn btn-info">
+                            <i class="fas fa-upload me-2"></i>Submit File
+                        </a>
+                        <a href="{{ url_for('community.chat') }}" class="btn btn-warning">
+                            <i class="fas fa-comments me-2"></i>Join Chat
+                        </a>
+                        <a href="{{ url_for('community.create_video_call') }}" class="btn btn-secondary">
+                            <i class="fas fa-video me-2"></i>Start Video Call
+                        </a>
+                        <a href="{{ url_for('main.map_view') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-map me-2"></i>View Resource Map
+                        </a>
+                    </div>
+                    
+                    <hr class="my-3">
+                    
+                    <h6 class="fw-bold mb-2">Community Links</h6>
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('community.index') }}" class="list-group-item list-group-item-action border-0 px-0">
+                            <i class="fas fa-users me-2 text-primary"></i>Community Forum
+                        </a>
+                        <a href="{{ url_for('community.files') }}" class="list-group-item list-group-item-action border-0 px-0">
+                            <i class="fas fa-folder me-2 text-info"></i>Shared Files
+                        </a>
+                        <a href="{{ url_for('community.video_calls') }}" class="list-group-item list-group-item-action border-0 px-0">
+                            <i class="fas fa-video me-2 text-success"></i>Active Video Calls
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Summary -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>Profile Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div class="avatar mx-auto mb-2" style="width: 60px; height: 60px; font-size: 1.2rem;">
+                            {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+                        </div>
+                        <h6 class="fw-bold">{{ current_user.get_full_name() }}</h6>
+                        <span class="badge bg-primary">{{ current_user.role.title() }}</span>
+                    </div>
+                    
+                    {% if current_user.bio %}
+                    <p class="text-muted small text-center">{{ current_user.bio }}</p>
+                    {% endif %}
+                    
+                    <div class="d-grid">
+                        <a href="{{ url_for('auth.edit_profile') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-edit me-2"></i>Edit Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Platform Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- This would be populated with recent platform-wide activity -->
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Latest Resources</h6>
+                            <!-- Latest resources would be loaded here -->
+                            <div class="text-center py-3">
+                                <i class="fas fa-spinner fa-spin text-muted"></i>
+                                <p class="text-muted small mt-2">Loading recent resources...</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Community Updates</h6>
+                            <!-- Latest community posts would be loaded here -->
+                            <div class="text-center py-3">
+                                <i class="fas fa-spinner fa-spin text-muted"></i>
+                                <p class="text-muted small mt-2">Loading community updates...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Dashboard specific JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Load recent activity
+    loadRecentActivity();
+    
+    // Auto-refresh notifications every 30 seconds
+    setInterval(loadNotifications, 30000);
+});
+
+function loadRecentActivity() {
+    // This would fetch recent platform activity
+    // For now, we'll simulate loading
+    setTimeout(() => {
+        document.querySelectorAll('.fa-spinner').forEach(spinner => {
+            spinner.parentElement.innerHTML = '<p class="text-muted small">No recent activity</p>';
+        });
+    }, 1000);
+}
+
+// Mark notification as read when clicked
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.notification-item')) {
+        const notificationItem = e.target.closest('.notification-item');
+        const notificationId = notificationItem.dataset.notificationId;
+        markNotificationRead(notificationId);
+        notificationItem.style.opacity = '0.6';
+    }
+});
+</script>
+{% endblock %}

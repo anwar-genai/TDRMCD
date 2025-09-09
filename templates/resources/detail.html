@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}{{ resource.title }} - Resource Details{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                {% if resource.image_url %}
+                <img src="{{ url_for('static', filename='uploads/' + resource.image_url) }}" class="card-img-top" alt="{{ resource.title }}">
+                {% endif %}
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h3 class="mb-0">{{ resource.title }}</h3>
+                        <span class="badge bg-primary">{{ resource.category.title() }}</span>
+                    </div>
+                    {% if resource.subcategory %}
+                    <p class="mb-1"><strong>Type:</strong> {{ resource.subcategory.title() }}</p>
+                    {% endif %}
+                    {% if resource.location %}
+                    <p class="mb-1"><strong>Location:</strong> <i class="fas fa-map-marker-alt me-1"></i>{{ resource.location }}</p>
+                    {% endif %}
+                    {% if resource.latitude and resource.longitude %}
+                    <p class="mb-1"><strong>Coordinates:</strong> {{ resource.latitude }}, {{ resource.longitude }}</p>
+                    {% endif %}
+                    {% if resource.economic_value %}
+                    <p class="mb-1"><strong>Economic Value:</strong> {{ resource.economic_value }}</p>
+                    {% endif %}
+                    <hr>
+                    <p class="text-muted">{{ resource.description }}</p>
+                    {% if resource.sustainability_info %}
+                    <hr>
+                    <h6>Sustainability Information</h6>
+                    <p class="text-muted">{{ resource.sustainability_info }}</p>
+                    {% endif %}
+                </div>
+                <div class="card-footer d-flex justify-content-between align-items-center">
+                    <small class="text-muted">By {{ resource.author.get_full_name() }} • {{ resource.created_at.strftime('%B %d, %Y') }}</small>
+                    <div class="d-flex gap-2">
+                        {% if current_user.is_authenticated and (current_user.id == resource.author_id or current_user.is_admin()) %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('resources.edit', id=resource.id) }}"><i class="fas fa-edit me-1"></i>Edit</a>
+                        <form method="POST" action="{{ url_for('resources.delete', id=resource.id) }}" onsubmit="return confirm('Delete this resource?')">
+                            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="fas fa-trash me-1"></i>Delete</button>
+                        </form>
+                        {% endif %}
+                        {% if resource.latitude and resource.longitude %}
+                        <a class="btn btn-sm btn-outline-info" href="{{ url_for('main.map_view') }}#res-{{ resource.id }}">
+                            <i class="fas fa-map-marker-alt me-1"></i>Show on Map
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Related Resources</h6>
+                </div>
+                <div class="card-body">
+                    {% for r in related_resources %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="flex-shrink-0 me-3">
+                            {% if r.image_url %}
+                            <img src="{{ url_for('static', filename='uploads/' + r.image_url) }}" class="rounded" style="width: 48px; height: 48px; object-fit: cover;" alt="{{ r.title }}">
+                            {% else %}
+                            <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                <i class="fas fa-image text-muted"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1">
+                            <a class="text-decoration-none" href="{{ url_for('resources.detail', id=r.id) }}">
+                                <div class="fw-semibold">{{ r.title }}</div>
+                            </a>
+                            <small class="text-muted">{{ r.location or r.category.title() }}</small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-muted">No related resources.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-3">
+        <a class="btn btn-outline-primary" href="{{ url_for('resources.index') }}"><i class="fas fa-arrow-left me-1"></i>Back to Resources</a>
+    </div>
+    
+    {% if resource.latitude and resource.longitude %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h6 class="mb-0"><i class="fas fa-map me-2"></i>Location</h6>
+        </div>
+        <div class="card-body">
+            <div id="map" style="height: 350px;"></div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if resource.latitude and resource.longitude %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const map = L.map('map').setView([{{ resource.latitude }}, {{ resource.longitude }}], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    L.marker([{{ resource.latitude }}, {{ resource.longitude }}]).addTo(map).bindPopup('{{ resource.title|e }}');
+});
+</script>
+{% endif %}
+{% endblock %}
+
+

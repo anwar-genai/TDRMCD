@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block title %}Add Resource - TDRMCD{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h3 class="mb-0"><i class="fas fa-plus me-2"></i>Add New Resource</h3>
+                    <p class="mb-0 text-muted">Share information about local resources to help the community</p>
+                </div>
+                
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Basic Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>Basic Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                {{ form.title.label(class="form-label fw-bold") }}
+                                {{ form.title(class="form-control form-control-lg") }}
+                                {% if form.title.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.title.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.category.label(class="form-label fw-bold") }}
+                                {{ form.category(class="form-select form-select-lg") }}
+                                {% if form.category.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.category.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.subcategory.label(class="form-label fw-bold") }}
+                                {{ form.subcategory(class="form-control", placeholder="e.g., Coal, Copper, Wheat") }}
+                                {% if form.subcategory.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.subcategory.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.description.label(class="form-label fw-bold") }}
+                                {{ form.description(class="form-control", rows="6", placeholder="Provide detailed information about this resource...") }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.description.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    Include information about availability, characteristics, and importance
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Location Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold text-success mb-3">
+                                    <i class="fas fa-map-marker-alt me-2"></i>Location Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                {{ form.location.label(class="form-label fw-bold") }}
+                                {{ form.location(class="form-control", placeholder="e.g., Waziristan, North Waziristan District") }}
+                                {% if form.location.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.location.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.latitude.label(class="form-label fw-bold") }}
+                                <div class="input-group">
+                                    {{ form.latitude(class="form-control", placeholder="e.g., 34.0151", step="any") }}
+                                    <button type="button" class="btn btn-outline-secondary" onclick="getCurrentLocation()">
+                                        <i class="fas fa-crosshairs"></i>
+                                    </button>
+                                </div>
+                                {% if form.latitude.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.latitude.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.longitude.label(class="form-label fw-bold") }}
+                                <div class="input-group">
+                                    {{ form.longitude(class="form-control", placeholder="e.g., 71.5249", step="any") }}
+                                    <button type="button" class="btn btn-outline-secondary" onclick="showMapPicker()">
+                                        <i class="fas fa-map"></i>
+                                    </button>
+                                </div>
+                                {% if form.longitude.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.longitude.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="small text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Coordinates help others find the exact location of this resource on the map
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold text-info mb-3">
+                                    <i class="fas fa-chart-line me-2"></i>Additional Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.economic_value.label(class="form-label fw-bold") }}
+                                {{ form.economic_value(class="form-control", placeholder="e.g., High commercial value") }}
+                                {% if form.economic_value.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.economic_value.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.image.label(class="form-label fw-bold") }}
+                                {{ form.image(class="form-control", accept="image/*") }}
+                                {% if form.image.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.image.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    Upload an image to help others visualize the resource
+                                </div>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.sustainability_info.label(class="form-label fw-bold") }}
+                                {{ form.sustainability_info(class="form-control", rows="4", placeholder="Information about sustainable practices and conservation...") }}
+                                {% if form.sustainability_info.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.sustainability_info.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    Share information about sustainable use and conservation practices
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <a href="{{ url_for('resources.index') }}" class="btn btn-outline-secondary btn-lg">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save me-2"></i>Add Resource
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Map Picker Modal -->
+<div class="modal fade" id="mapPickerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Location on Map</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="mapPicker" style="height: 400px;"></div>
+                <div class="mt-2 text-muted small">
+                    Click on the map to select coordinates
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="confirmLocation()">Use Selected Location</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let mapPicker = null;
+let selectedMarker = null;
+let selectedCoords = null;
+
+// Get current location
+function getCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                document.getElementById('latitude').value = position.coords.latitude.toFixed(6);
+                document.getElementById('longitude').value = position.coords.longitude.toFixed(6);
+                TDRMCD.showToast('Location coordinates updated!', 'success');
+            },
+            function(error) {
+                console.error('Geolocation error:', error);
+                TDRMCD.showToast('Unable to get current location. Please enter manually.', 'warning');
+            }
+        );
+    } else {
+        TDRMCD.showToast('Geolocation is not supported by this browser.', 'error');
+    }
+}
+
+// Show map picker
+function showMapPicker() {
+    const modal = new bootstrap.Modal(document.getElementById('mapPickerModal'));
+    modal.show();
+    
+    // Initialize map when modal is shown
+    document.getElementById('mapPickerModal').addEventListener('shown.bs.modal', function() {
+        if (!mapPicker) {
+            mapPicker = L.map('mapPicker').setView([34.0151, 71.5249], 8);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapPicker);
+            
+            // Add click event
+            mapPicker.on('click', function(e) {
+                if (selectedMarker) {
+                    mapPicker.removeLayer(selectedMarker);
+                }
+                
+                selectedMarker = L.marker(e.latlng).addTo(mapPicker);
+                selectedCoords = e.latlng;
+            });
+        }
+        
+        // Invalidate size to fix display issues
+        setTimeout(() => {
+            mapPicker.invalidateSize();
+        }, 100);
+    });
+}
+
+// Confirm selected location
+function confirmLocation() {
+    if (selectedCoords) {
+        document.getElementById('latitude').value = selectedCoords.lat.toFixed(6);
+        document.getElementById('longitude').value = selectedCoords.lng.toFixed(6);
+        
+        bootstrap.Modal.getInstance(document.getElementById('mapPickerModal')).hide();
+        TDRMCD.showToast('Coordinates updated from map!', 'success');
+    } else {
+        TDRMCD.showToast('Please select a location on the map first.', 'warning');
+    }
+}
+
+// Auto-fill coordinates if provided in URL (from map click)
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const lat = urlParams.get('lat');
+    const lng = urlParams.get('lng');
+    
+    if (lat && lng) {
+        document.getElementById('latitude').value = parseFloat(lat).toFixed(6);
+        document.getElementById('longitude').value = parseFloat(lng).toFixed(6);
+        TDRMCD.showToast('Coordinates pre-filled from map selection!', 'info');
+    }
+});
+
+// Image preview
+document.querySelector('input[type="file"]').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            let preview = document.querySelector('.image-preview');
+            if (!preview) {
+                preview = document.createElement('div');
+                preview.className = 'image-preview mt-2';
+                e.target.parentElement.appendChild(preview);
+            }
+            preview.innerHTML = `
+                <img src="${e.target.result}" alt="Preview" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                <div class="small text-muted mt-1">Preview: ${file.name}</div>
+            `;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+</script>
+{% endblock %}

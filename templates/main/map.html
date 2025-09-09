@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+
+{% block title %}Resource Map - TDRMCD{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Map Controls Sidebar -->
+        <div class="col-lg-3 col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Map Controls</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Category Filters -->
+                    <h6 class="fw-bold mb-2">Resource Categories</h6>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="show-minerals" checked onchange="toggleCategory('minerals')">
+                            <label class="form-check-label" for="show-minerals">
+                                <i class="fas fa-gem text-primary me-2"></i>Minerals
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="show-agriculture" checked onchange="toggleCategory('agriculture')">
+                            <label class="form-check-label" for="show-agriculture">
+                                <i class="fas fa-seedling text-success me-2"></i>Agriculture
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="show-wildlife" checked onchange="toggleCategory('wildlife')">
+                            <label class="form-check-label" for="show-wildlife">
+                                <i class="fas fa-paw text-info me-2"></i>Wildlife
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="show-cultural" checked onchange="toggleCategory('cultural')">
+                            <label class="form-check-label" for="show-cultural">
+                                <i class="fas fa-landmark text-warning me-2"></i>Cultural
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Map Layers -->
+                    <h6 class="fw-bold mb-2">Map Layers</h6>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="mapLayer" id="satellite" onchange="changeMapLayer('satellite')">
+                            <label class="form-check-label" for="satellite">Satellite View</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="mapLayer" id="terrain" onchange="changeMapLayer('terrain')">
+                            <label class="form-check-label" for="terrain">Terrain View</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="mapLayer" id="street" checked onchange="changeMapLayer('street')">
+                            <label class="form-check-label" for="street">Street View</label>
+                        </div>
+                    </div>
+
+                    <!-- Search Location -->
+                    <h6 class="fw-bold mb-2">Search Location</h6>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="location-search" placeholder="Search for a place...">
+                        <button class="btn btn-outline-secondary" type="button" onclick="searchLocation()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+
+                    <!-- Map Statistics -->
+                    <div class="bg-light p-3 rounded">
+                        <h6 class="fw-bold mb-2">Map Statistics</h6>
+                        <div class="small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Total Resources:</span>
+                                <span class="fw-bold" id="total-resources">{{ map_data|length }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Visible:</span>
+                                <span class="fw-bold" id="visible-resources">{{ map_data|length }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Selected:</span>
+                                <span class="fw-bold" id="selected-resources">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Legend</h6>
+                </div>
+                <div class="card-body">
+                    <div class="legend-item d-flex align-items-center mb-2">
+                        <div class="legend-marker bg-primary rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                        <small>Minerals</small>
+                    </div>
+                    <div class="legend-item d-flex align-items-center mb-2">
+                        <div class="legend-marker bg-success rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                        <small>Agriculture</small>
+                    </div>
+                    <div class="legend-item d-flex align-items-center mb-2">
+                        <div class="legend-marker bg-info rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                        <small>Wildlife</small>
+                    </div>
+                    <div class="legend-item d-flex align-items-center">
+                        <div class="legend-marker bg-warning rounded-circle me-2" style="width: 12px; height: 12px;"></div>
+                        <small>Cultural Heritage</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Map -->
+        <div class="col-lg-9 col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map me-2"></i>Interactive Resource Map
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="centerMap()">
+                            <i class="fas fa-crosshairs me-1"></i>Center
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleFullscreen()">
+                            <i class="fas fa-expand me-1"></i>Fullscreen
+                        </button>
+                        {% if current_user.is_authenticated %}
+                        <button class="btn btn-sm btn-success" onclick="addResourceToMap()">
+                            <i class="fas fa-plus me-1"></i>Add Resource
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="map" class="map-container" style="height: 600px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resource Details Modal -->
+<div class="modal fade" id="resourceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resource-modal-title">Resource Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="resource-modal-body">
+                <!-- Resource details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" id="view-resource-link" class="btn btn-primary">View Full Details</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Map data from server
+window.mapData = {{ map_data|tojson }};
+
+let map = null;
+let markers = {};
+let markerGroups = {
+    minerals: L.layerGroup(),
+    agriculture: L.layerGroup(),
+    wildlife: L.layerGroup(),
+    cultural: L.layerGroup()
+};
+
+// Initialize map
+document.addEventListener('DOMContentLoaded', function() {
+    initializeMap();
+    loadResourceMarkers();
+});
+
+function initializeMap() {
+    // Center on KPK, Pakistan
+    map = L.map('map').setView([34.0151, 71.5249], 8);
+    
+    // Default tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+    
+    // Add marker groups to map
+    Object.values(markerGroups).forEach(group => {
+        map.addLayer(group);
+    });
+    
+    // Map event listeners
+    map.on('click', function(e) {
+        if (window.addingResource) {
+            addResourceMarker(e.latlng);
+        }
+    });
+}
+
+function loadResourceMarkers() {
+    window.mapData.forEach(resource => {
+        const marker = createResourceMarker(resource);
+        markerGroups[resource.category].addLayer(marker);
+        markers[resource.id] = marker;
+    });
+    
+    updateResourceCount();
+}
+
+function createResourceMarker(resource) {
+    const iconColor = getIconColor(resource.category);
+    const icon = L.divIcon({
+        className: 'custom-marker',
+        html: `<div class="marker-icon bg-${iconColor} text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px;">
+                   <i class="fas fa-${getIconName(resource.category)} fa-sm"></i>
+               </div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+    });
+    
+    const marker = L.marker([resource.latitude, resource.longitude], {icon: icon});
+    
+    marker.bindPopup(`
+        <div class="map-popup">
+            <h6 class="fw-bold">${resource.title}</h6>
+            <p class="small mb-2">${resource.description}</p>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-${iconColor}">${resource.category.charAt(0).toUpperCase() + resource.category.slice(1)}</span>
+                ${resource.location ? `<small class="text-muted">${resource.location}</small>` : ''}
+            </div>
+            <button class="btn btn-sm btn-primary w-100" onclick="showResourceDetails(${resource.id})">
+                View Details
+            </button>
+        </div>
+    `);
+    
+    return marker;
+}
+
+function getIconColor(category) {
+    const colors = {
+        'minerals': 'primary',
+        'agriculture': 'success',
+        'wildlife': 'info',
+        'cultural': 'warning'
+    };
+    return colors[category] || 'secondary';
+}
+
+function getIconName(category) {
+    const icons = {
+        'minerals': 'gem',
+        'agriculture': 'seedling',
+        'wildlife': 'paw',
+        'cultural': 'landmark'
+    };
+    return icons[category] || 'map-marker-alt';
+}
+
+function toggleCategory(category) {
+    const checkbox = document.getElementById(`show-${category}`);
+    if (checkbox.checked) {
+        map.addLayer(markerGroups[category]);
+    } else {
+        map.removeLayer(markerGroups[category]);
+    }
+    updateResourceCount();
+}
+
+function updateResourceCount() {
+    let visible = 0;
+    Object.keys(markerGroups).forEach(category => {
+        if (map.hasLayer(markerGroups[category])) {
+            visible += markerGroups[category].getLayers().length;
+        }
+    });
+    
+    document.getElementById('visible-resources').textContent = visible;
+}
+
+function changeMapLayer(layerType) {
+    // Remove current tile layer
+    map.eachLayer(function(layer) {
+        if (layer instanceof L.TileLayer) {
+            map.removeLayer(layer);
+        }
+    });
+    
+    // Add new tile layer
+    let tileUrl = '';
+    switch(layerType) {
+        case 'satellite':
+            tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+            break;
+        case 'terrain':
+            tileUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+            break;
+        default:
+            tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    }
+    
+    L.tileLayer(tileUrl, {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+}
+
+function searchLocation() {
+    const query = document.getElementById('location-search').value.trim();
+    if (!query) return;
+    
+    // Simple geocoding using Nominatim API
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                const result = data[0];
+                const lat = parseFloat(result.lat);
+                const lng = parseFloat(result.lon);
+                
+                map.setView([lat, lng], 12);
+                
+                // Add temporary marker
+                const tempMarker = L.marker([lat, lng])
+                    .addTo(map)
+                    .bindPopup(`<strong>${result.display_name}</strong>`)
+                    .openPopup();
+                
+                // Remove temporary marker after 5 seconds
+                setTimeout(() => {
+                    map.removeLayer(tempMarker);
+                }, 5000);
+            } else {
+                alert('Location not found. Please try a different search term.');
+            }
+        })
+        .catch(error => {
+            console.error('Geocoding error:', error);
+            alert('Error searching for location. Please try again.');
+        });
+}
+
+function centerMap() {
+    // Center on KPK
+    map.setView([34.0151, 71.5249], 8);
+}
+
+function toggleFullscreen() {
+    const mapContainer = document.querySelector('.map-container').parentElement;
+    
+    if (!document.fullscreenElement) {
+        mapContainer.requestFullscreen().then(() => {
+            // Invalidate map size after entering fullscreen
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
+        });
+    } else {
+        document.exitFullscreen().then(() => {
+            // Invalidate map size after exiting fullscreen
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
+        });
+    }
+}
+
+function showResourceDetails(resourceId) {
+    // Find resource data
+    const resource = window.mapData.find(r => r.id === resourceId);
+    if (!resource) return;
+    
+    // Update modal content
+    document.getElementById('resource-modal-title').textContent = resource.title;
+    document.getElementById('resource-modal-body').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="fw-bold">Description</h6>
+                <p>${resource.description}</p>
+                
+                <h6 class="fw-bold">Category</h6>
+                <span class="badge bg-${getIconColor(resource.category)} mb-2">${resource.category.charAt(0).toUpperCase() + resource.category.slice(1)}</span>
+                
+                ${resource.location ? `
+                <h6 class="fw-bold">Location</h6>
+                <p><i class="fas fa-map-marker-alt me-2"></i>${resource.location}</p>
+                ` : ''}
+            </div>
+            <div class="col-md-6">
+                <h6 class="fw-bold">Coordinates</h6>
+                <p>
+                    <strong>Latitude:</strong> ${resource.latitude}<br>
+                    <strong>Longitude:</strong> ${resource.longitude}
+                </p>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="copyCoordinates(${resource.latitude}, ${resource.longitude})">
+                        <i class="fas fa-copy me-2"></i>Copy Coordinates
+                    </button>
+                    <button class="btn btn-sm btn-outline-info" onclick="getDirections(${resource.latitude}, ${resource.longitude})">
+                        <i class="fas fa-directions me-2"></i>Get Directions
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('view-resource-link').href = `/resources/${resourceId}`;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('resourceModal'));
+    modal.show();
+}
+
+function copyCoordinates(lat, lng) {
+    const coordinates = `${lat}, ${lng}`;
+    navigator.clipboard.writeText(coordinates).then(() => {
+        TDRMCD.showToast('Coordinates copied to clipboard!', 'success');
+    }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = coordinates;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        TDRMCD.showToast('Coordinates copied to clipboard!', 'success');
+    });
+}
+
+function getDirections(lat, lng) {
+    // Open Google Maps with directions
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    window.open(url, '_blank');
+}
+
+let addingResource = false;
+
+function addResourceToMap() {
+    if (!addingResource) {
+        addingResource = true;
+        map.getContainer().style.cursor = 'crosshair';
+        TDRMCD.showToast('Click on the map to add a new resource location', 'info');
+    } else {
+        addingResource = false;
+        map.getContainer().style.cursor = '';
+    }
+}
+
+function addResourceMarker(latlng) {
+    if (addingResource) {
+        // Redirect to add resource page with coordinates
+        const url = `{{ url_for('resources.add') }}?lat=${latlng.lat}&lng=${latlng.lng}`;
+        window.location.href = url;
+    }
+}
+
+// Handle browser fullscreen change
+document.addEventListener('fullscreenchange', function() {
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 100);
+});
+</script>
+{% endblock %}

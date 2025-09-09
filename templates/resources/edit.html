@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Resource - {{ resource.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0"><i class="fas fa-edit me-2"></i>Edit Resource</h3>
+                        <small class="text-muted">Update details for "{{ resource.title }}"</small>
+                    </div>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('resources.detail', id=resource.id) }}">
+                        <i class="fas fa-arrow-left me-1"></i>Back
+                    </a>
+                </div>
+                
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label fw-bold") }}
+                            {{ form.title(class="form-control form-control-lg") }}
+                            {% if form.title.errors %}
+                                <div class="text-danger small mt-1">{% for e in form.title.errors %}<div>{{ e }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.category.label(class="form-label fw-bold") }}
+                                {{ form.category(class="form-select form-select-lg") }}
+                                {% if form.category.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.category.errors %}<div>{{ e }}</div>{% endfor %}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.subcategory.label(class="form-label fw-bold") }}
+                                {{ form.subcategory(class="form-control") }}
+                                {% if form.subcategory.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.subcategory.errors %}<div>{{ e }}</div>{% endfor %}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label fw-bold") }}
+                            {{ form.description(class="form-control", rows="6") }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small mt-1">{% for e in form.description.errors %}<div>{{ e }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.location.label(class="form-label fw-bold") }}
+                                {{ form.location(class="form-control") }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.latitude.label(class="form-label fw-bold") }}
+                                {{ form.latitude(class="form-control", step="any") }}
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                {{ form.longitude.label(class="form-label fw-bold") }}
+                                {{ form.longitude(class="form-control", step="any") }}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.economic_value.label(class="form-label fw-bold") }}
+                                {{ form.economic_value(class="form-control") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.image.label(class="form-label fw-bold") }}
+                                {{ form.image(class="form-control", accept="image/*") }}
+                                {% if resource.image_url %}
+                                <div class="form-text">Current image shown on the resource page.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.sustainability_info.label(class="form-label fw-bold") }}
+                            {{ form.sustainability_info(class="form-control", rows="4") }}
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a class="btn btn-outline-secondary" href="{{ url_for('resources.detail', id=resource.id) }}">Cancel</a>
+                            <button class="btn btn-primary" type="submit"><i class="fas fa-save me-1"></i>Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Video Call - {{ video_call.title }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-video me-2"></i>{{ video_call.title }}</h5>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('community.video_calls') }}"><i class="fas fa-arrow-left me-1"></i>Back</a>
+                </div>
+                <div class="card-body">
+                    <div class="video-container" style="height: 500px;">
+                        <div class="d-flex h-100 align-items-center justify-content-center text-muted">
+                            <div class="text-center">
+                                <i class="fas fa-video fa-3x mb-3"></i>
+                                <div>Video call UI placeholder</div>
+                                <small>Integrate WebRTC/Jitsi/3rd-party service here</small>
+                            </div>
+                        </div>
+                        <div class="video-controls">
+                            <button class="btn btn-light" title="Mute"><i class="fas fa-microphone"></i></button>
+                            <button class="btn btn-light" title="Camera"><i class="fas fa-video"></i></button>
+                            <button class="btn btn-danger" title="Leave"><i class="fas fa-phone-slash"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <div class="text-muted small">Room ID: {{ video_call.room_id }}</div>
+                    <div class="text-muted small">Host: {{ video_call.host.get_full_name() }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

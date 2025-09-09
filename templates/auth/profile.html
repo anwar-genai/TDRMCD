@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="avatar me-3" style="width:72px;height:72px;font-size:1.25rem;">
+                            {{ user.first_name[0] }}{{ user.last_name[0] }}
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ user.get_full_name() }}</h3>
+                            <div class="text-muted">@{{ user.username }} • {{ user.email }}</div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small">Role</label>
+                            <div class="fw-semibold"><span class="badge bg-primary">{{ user.role.title() }}</span></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Location</label>
+                            <div class="fw-semibold">{{ user.location or '—' }}</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="text-muted small">Bio</label>
+                            <div class="fw-semibold">{{ user.bio or 'No bio yet.' }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Member since</label>
+                            <div class="fw-semibold">{{ user.created_at.strftime('%B %d, %Y') }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small">Last seen</label>
+                            <div class="fw-semibold">{{ user.last_seen.strftime('%B %d, %Y %I:%M %p') }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <a class="btn btn-primary" href="{{ url_for('auth.edit_profile') }}"><i class="fas fa-edit me-1"></i>Edit Profile</a>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

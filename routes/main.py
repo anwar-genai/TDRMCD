@@ -1,0 +1,141 @@
+from flask import Blueprint, render_template, request, jsonify
+from flask_login import login_required, current_user
+from models import db, Resource, CommunityPost, Campaign, Notification
+from sqlalchemy import or_, desc
+
+main_bp = Blueprint('main', __name__)
+
+@main_bp.route('/')
+def index():
+    # Get featured resources
+    featured_resources = Resource.query.filter_by(status='active').limit(6).all()
+    
+    # Get recent community posts
+    recent_posts = CommunityPost.query.order_by(desc(CommunityPost.created_at)).limit(5).all()
+    
+    # Get active campaigns
+    active_campaigns = Campaign.query.filter_by(is_active=True).limit(3).all()
+    
+    return render_template('main/index.html', 
+                         featured_resources=featured_resources,
+                         recent_posts=recent_posts,
+                         active_campaigns=active_campaigns)
+
+@main_bp.route('/dashboard')
+@login_required
+def dashboard():
+    # Get user's recent activities
+    user_resources = current_user.resources.limit(5).all()
+    user_posts = current_user.posts.limit(5).all()
+    
+    # Get notifications
+    notifications = current_user.notifications.filter_by(is_read=False).limit(10).all()
+    
+    # Get statistics
+    stats = {
+        'total_resources': Resource.query.filter_by(status='active').count(),
+        'user_resources': current_user.resources.count(),
+        'user_posts': current_user.posts.count(),
+        'unread_notifications': current_user.notifications.filter_by(is_read=False).count()
+    }
+    
+    return render_template('main/dashboard.html',
+                         user_resources=user_resources,
+                         user_posts=user_posts,
+                         notifications=notifications,
+                         stats=stats)
+
+@main_bp.route('/search')
+def search():
+    query = request.args.get('q', '')
+    category = request.args.get('category', 'all')
+    page = request.args.get('page', 1, type=int)
+    
+    if not query:
+        return render_template('main/search.html', results=[], query=query)
+    
+    # Search in resources
+    resource_query = Resource.query.filter_by(status='active')
+    if category != 'all':
+        resource_query = resource_query.filter_by(category=category)
+    
+    resources = resource_query.filter(
+        or_(
+            Resource.title.contains(query),
+            Resource.description.contains(query),
+            Resource.location.contains(query)
+        )
+    ).paginate(
+        page=page, per_page=12, error_out=False
+    )
+    
+    # Search in community posts
+    posts = CommunityPost.query.filter(
+        or_(
+            CommunityPost.title.contains(query),
+            CommunityPost.content.contains(query),
+            CommunityPost.tags.contains(query)
+        )
+    ).limit(10).all()
+    
+    return render_template('main/search.html',
+                         resources=resources,
+                         posts=posts,
+                         query=query,
+                         category=category)
+
+@main_bp.route('/about')
+def about():
+    return render_template('main/about.html')
+
+@main_bp.route('/contact')
+def contact():
+    return render_template('main/contact.html')
+
+@main_bp.route('/map')
+def map_view():
+    # Get all resources with coordinates
+    resources_with_coords = Resource.query.filter(
+        Resource.latitude.isnot(None),
+        Resource.longitude.isnot(None),
+        Resource.status == 'active'
+    ).all()
+    
+    # Convert to JSON format for map
+    map_data = []
+    for resource in resources_with_coords:
+        map_data.append({
+            'id': resource.id,
+            'title': resource.title,
+            'description': resource.description[:100] + '...' if len(resource.description) > 100 else resource.description,
+            'category': resource.category,
+            'latitude': resource.latitude,
+            'longitude': resource.longitude,
+            'location': resource.location
+        })
+    
+    return render_template('main/map.html', map_data=map_data)
+
+@main_bp.route('/api/notifications/mark_read/<int:notification_id>', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    notification = Notification.query.filter_by(
+        id=notification_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    notification.is_read = True
+    db.session.commit()
+    
+    return jsonify({'status': 'success'})
+
+@main_bp.route('/api/notifications/mark_all_read', methods=['POST'])
+@login_required
+def mark_all_notifications_read():
+    Notification.query.filter_by(
+        user_id=current_user.id,
+        is_read=False
+    ).update({'is_read': True})
+    
+    db.session.commit()
+    return jsonify({'status': 'success'})

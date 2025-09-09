@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Submit File - TDRMCD{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h3 class="mb-0"><i class="fas fa-upload me-2"></i>Submit File to Community</h3>
+                    <p class="mb-0 text-muted">Share documents, research papers, or images with the community</p>
+                </div>
+                
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Important:</strong> All file submissions require a valid reference or source 
+                        to ensure authenticity and credibility. Files will be reviewed before being published.
+                    </div>
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- File Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold text-primary mb-3">
+                                    <i class="fas fa-file me-2"></i>File Information
+                                </h5>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.title.label(class="form-label fw-bold") }}
+                                {{ form.title(class="form-control form-control-lg") }}
+                                {% if form.title.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.title.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.category.label(class="form-label fw-bold") }}
+                                {{ form.category(class="form-select form-select-lg") }}
+                                {% if form.category.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.category.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                {{ form.file.label(class="form-label fw-bold") }}
+                                <div class="file-upload-area" onclick="document.getElementById('file').click()">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h6>Click to select file or drag and drop</h6>
+                                    <p class="text-muted small mb-0">
+                                        Supported: PDF, DOC, DOCX, XLS, XLSX, TXT, JPG, PNG, GIF (Max 16MB)
+                                    </p>
+                                    {{ form.file(class="d-none", id="file") }}
+                                    <div class="file-info mt-2" style="display: none;">
+                                        <div class="file-name fw-bold"></div>
+                                        <div class="file-size text-muted small"></div>
+                                    </div>
+                                </div>
+                                {% if form.file.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.file.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.description.label(class="form-label fw-bold") }}
+                                {{ form.description(class="form-control", rows="4", placeholder="Describe the content and purpose of this file...") }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.description.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Reference Information -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold text-warning mb-3">
+                                    <i class="fas fa-bookmark me-2"></i>Reference & Source Information
+                                </h5>
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Required:</strong> Please provide a valid reference or source for your submission. 
+                                    This helps maintain the credibility and reliability of shared content.
+                                </div>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.reference.label(class="form-label fw-bold") }}
+                                {{ form.reference(class="form-control", rows="4", placeholder="Example:\n[1] Author Name, 'Title of Paper/Report', Journal/Organization, Year. Available: URL\n[2] Personal research conducted at Location, Date\n[3] Government report from Department, Year") }}
+                                {% if form.reference.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.reference.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    Include author, title, source, date, and URL if available. 
+                                    For personal research, include location and date of collection.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Terms and Conditions -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="terms" required>
+                                    <label class="form-check-label" for="terms">
+                                        I confirm that:
+                                        <ul class="mt-2 small">
+                                            <li>This content is my own work or I have permission to share it</li>
+                                            <li>The provided reference information is accurate and verifiable</li>
+                                            <li>The content is appropriate for community sharing</li>
+                                            <li>I understand that submissions will be reviewed before publication</li>
+                                        </ul>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <a href="{{ url_for('community.files') }}" class="btn btn-outline-secondary btn-lg">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-upload me-2"></i>Submit for Review
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Submission Guidelines -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Submission Guidelines</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-success">✅ Good Examples:</h6>
+                            <ul class="small">
+                                <li>Research papers with proper citations</li>
+                                <li>Government reports with official sources</li>
+                                <li>Field photographs with location and date</li>
+                                <li>Academic publications with journal references</li>
+                                <li>Official documentation with department sources</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-danger">❌ Avoid:</h6>
+                            <ul class="small">
+                                <li>Copyrighted material without permission</li>
+                                <li>Unverified or unreliable sources</li>
+                                <li>Personal opinions without supporting data</li>
+                                <li>Inappropriate or offensive content</li>
+                                <li>Files without proper references</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// File upload handling
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('file');
+    const uploadArea = document.querySelector('.file-upload-area');
+    const fileInfo = document.querySelector('.file-info');
+    const fileName = document.querySelector('.file-name');
+    const fileSize = document.querySelector('.file-size');
+
+    // File input change
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            const file = e.target.files[0];
+            fileName.textContent = file.name;
+            fileSize.textContent = TDRMCD.formatFileSize(file.size);
+            fileInfo.style.display = 'block';
+            
+            // Show file type icon
+            const icon = getFileIcon(file.name);
+            fileName.innerHTML = `<i class="fas fa-${icon} me-2"></i>${file.name}`;
+        }
+    });
+
+    // Drag and drop
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            fileInput.dispatchEvent(new Event('change'));
+        }
+    });
+});
+
+function getFileIcon(filename) {
+    const extension = filename.split('.').pop().toLowerCase();
+    const icons = {
+        'pdf': 'file-pdf',
+        'doc': 'file-word',
+        'docx': 'file-word',
+        'xls': 'file-excel',
+        'xlsx': 'file-excel',
+        'txt': 'file-alt',
+        'jpg': 'file-image',
+        'jpeg': 'file-image',
+        'png': 'file-image',
+        'gif': 'file-image'
+    };
+    return icons[extension] || 'file';
+}
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    const termsCheckbox = document.getElementById('terms');
+    
+    if (!fileInput.files.length) {
+        e.preventDefault();
+        TDRMCD.showToast('Please select a file to upload', 'error');
+        return false;
+    }
+    
+    if (!termsCheckbox.checked) {
+        e.preventDefault();
+        TDRMCD.showToast('Please accept the terms and conditions', 'error');
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = document.querySelector('button[type="submit"]');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

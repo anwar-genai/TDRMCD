@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - Community Post{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h3 class="mb-1">{{ post.title }}</h3>
+                            <div class="text-muted small">By {{ post.author.get_full_name() }} • {{ post.created_at.strftime('%B %d, %Y') }}</div>
+                        </div>
+                        <span class="badge bg-secondary">{{ post.category.title() }}</span>
+                    </div>
+                    {% if post.image_url %}
+                    <img class="img-fluid rounded my-3" src="{{ url_for('static', filename='uploads/' + post.image_url) }}" alt="{{ post.title }}">
+                    {% endif %}
+                    <p class="mt-2">{{ post.content }}</p>
+                    {% if post.tags %}
+                    <div class="mt-3">
+                        {% for tag in post.tags.split(',') %}
+                        <span class="badge bg-light text-dark me-1">#{{ tag.strip() }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="mt-3 d-flex gap-3 align-items-center">
+                        <button id="like-btn" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-heart me-1"></i>
+                            <span id="like-text">Like</span>
+                        </button>
+                        <span id="like-count" class="text-muted">{{ post.likes }}</span>
+                        <span class="text-muted"><i class="fas fa-eye me-1"></i>{{ post.views }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Comments</h6>
+                </div>
+                <div class="card-body">
+                    {% if current_user.is_authenticated %}
+                    <form class="mb-3" method="post" action="{{ url_for('community.add_comment', id=post.id) }}">
+                        {{ comment_form.hidden_tag() }}
+                        {{ comment_form.parent_id() }}
+                        <div class="mb-2">
+                            {{ comment_form.content(class="form-control", rows="3", placeholder="Write a comment...") }}
+                            {% if comment_form.content.errors %}
+                                <div class="text-danger small mt-1">{% for e in comment_form.content.errors %}<div>{{ e }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+                        <button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane me-1"></i>Post Comment</button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-info">Please <a href="{{ url_for('auth.login') }}">log in</a> to comment.</div>
+                    {% endif %}
+
+                    {% if comments %}
+                        {% for c in comments %}
+                        <div class="mb-3">
+                            <div class="d-flex">
+                                <div class="avatar me-2" style="width: 36px; height: 36px; font-size: .8rem;">
+                                    {{ c.author.first_name[0] }}{{ c.author.last_name[0] }}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>{{ c.author.get_full_name() }}</strong>
+                                        <small class="text-muted">{{ c.created_at.strftime('%b %d, %Y %H:%M') }}</small>
+                                    </div>
+                                    <div>{{ c.content }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="text-muted">No comments yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Actions</h6>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <a class="btn btn-outline-primary" href="{{ url_for('community.index') }}"><i class="fas fa-arrow-left me-1"></i>Back to Community</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const likeBtn = document.getElementById('like-btn');
+    const likeCount = document.getElementById('like-count');
+    const likeText = document.getElementById('like-text');
+
+    if (!likeBtn) return;
+
+    likeBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        try {
+            const res = await fetch('{{ url_for('community.like_post', id=post.id) }}', { method: 'POST' });
+            const data = await res.json();
+            likeCount.textContent = data.likes;
+            if (data.liked) {
+                likeBtn.classList.remove('btn-outline-danger');
+                likeBtn.classList.add('btn-danger');
+                likeText.textContent = 'Liked';
+            } else {
+                likeBtn.classList.add('btn-outline-danger');
+                likeBtn.classList.remove('btn-danger');
+                likeText.textContent = 'Like';
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    });
+});
+</script>
+{% endblock %}
+
+
