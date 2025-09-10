@@ -116,6 +116,19 @@ def map_view():
     
     return render_template('main/map.html', map_data=map_data)
 
+# Campaigns - public listing by type
+@main_bp.route('/campaigns/<string:campaign_type>')
+def campaigns_by_type(campaign_type):
+    valid_types = {'education', 'health', 'sustainability'}
+    if campaign_type not in valid_types:
+        # Fallback to showing all active campaigns if invalid type
+        campaigns = Campaign.query.filter_by(is_active=True).order_by(desc(Campaign.created_at)).all()
+        current_type = 'all'
+    else:
+        campaigns = Campaign.query.filter_by(is_active=True, campaign_type=campaign_type).order_by(desc(Campaign.created_at)).all()
+        current_type = campaign_type
+    return render_template('main/campaigns.html', campaigns=campaigns, current_type=current_type)
+
 @main_bp.route('/api/notifications/mark_read/<int:notification_id>', methods=['POST'])
 @login_required
 def mark_notification_read(notification_id):

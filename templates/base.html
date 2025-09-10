@@ -55,9 +55,9 @@
                             <i class="fas fa-bullhorn me-1"></i>Campaigns
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-graduation-cap me-2"></i>Education</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-heartbeat me-2"></i>Health</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="fas fa-leaf me-2"></i>Sustainability</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.campaigns_by_type', campaign_type='education') }}"><i class="fas fa-graduation-cap me-2"></i>Education</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.campaigns_by_type', campaign_type='health') }}"><i class="fas fa-heartbeat me-2"></i>Health</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.campaigns_by_type', campaign_type='sustainability') }}"><i class="fas fa-leaf me-2"></i>Sustainability</a></li>
                         </ul>
                     </li>
                 </ul>
