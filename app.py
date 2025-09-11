@@ -21,10 +21,10 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 mail = Mail(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", manage_session=True, logger=True, engineio_logger=True, async_mode="threading")
 
 # Import models after db initialization
-from models import User, Resource, CommunityPost, ChatMessage, FileSubmission, Notification, Campaign, VideoCall
+from models import User, Resource, CommunityPost, ChatMessage, FileSubmission, Notification, Campaign, VideoCall, ChatRoom
 
 # Import blueprints
 from routes.auth import auth_bp
@@ -44,12 +44,21 @@ app.register_blueprint(admin_bp, url_prefix='/admin')
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Socket.IO events for real-time chat
+# Socket.IO session handler
 @socketio.on('connect')
-def on_connect():
+def handle_connect():
+    print(f"Socket.IO connection attempt from user: {current_user}")
+    print(f"User authenticated: {current_user.is_authenticated}")
     if current_user.is_authenticated:
         join_room(f"user_{current_user.id}")
         emit('status', {'msg': f'{current_user.username} has connected'})
+        print(f"User {current_user.username} connected successfully")
+    else:
+        print("Unauthenticated connection attempt - allowing connection anyway for testing")
+        # For now, allow unauthenticated connections to test
+        # return False
+
+# Socket.IO events for real-time chat and WebRTC signaling
 
 @socketio.on('disconnect')
 def on_disconnect():
@@ -59,39 +68,131 @@ def on_disconnect():
 
 @socketio.on('join_chat')
 def on_join_chat(data):
+    print(f"Join chat request from user: {current_user}")
+    print(f"User authenticated: {current_user.is_authenticated}")
     room = data['room']
+    print(f"Joining room: {room}")
     join_room(room)
-    emit('status', {'msg': f'{current_user.username} has joined the chat'}, room=room)
+    username = current_user.username if current_user.is_authenticated else "Anonymous"
+    emit('user_joined', {'username': username}, room=room)
+    print(f"User {username} joined room {room}")
 
 @socketio.on('leave_chat')
 def on_leave_chat(data):
+    print(f"Leave chat request from user: {current_user}")
     room = data['room']
+    print(f"Leaving room: {room}")
     leave_room(room)
-    emit('status', {'msg': f'{current_user.username} has left the chat'}, room=room)
+    username = current_user.username if current_user.is_authenticated else "Anonymous"
+    emit('user_left', {'username': username}, room=room)
+    print(f"User {username} left room {room}")
 
 @socketio.on('send_message')
 def handle_message(data):
+    print(f"Message received from user: {current_user}")
+    print(f"User authenticated: {current_user.is_authenticated}")
     room = data['room']
     message = data['message']
+    print(f"Saving message: {message} in room: {room}")
     
-    # Save message to database
-    chat_message = ChatMessage(
-        content=message,
-        sender_id=current_user.id,
-        room=room,
-        timestamp=datetime.utcnow()
-    )
-    db.session.add(chat_message)
-    db.session.commit()
+    # For testing, allow messages even from unauthenticated users
+    if current_user.is_authenticated:
+        # Save message to database
+        chat_message = ChatMessage(
+            content=message,
+            sender_id=current_user.id,
+            room=room,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(chat_message)
+        db.session.commit()
+        print(f"Message saved with ID: {chat_message.id}")
+        username = current_user.username
+        timestamp = chat_message.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+    else:
+        # For unauthenticated users, just broadcast without saving
+        username = "Anonymous"
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        print("Message not saved (unauthenticated user)")
     
     # Emit message to room
     emit('receive_message', {
         'message': message,
-        'username': current_user.username,
-        'timestamp': chat_message.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        'username': username,
+        'timestamp': timestamp
     }, room=room)
+    print(f"Message emitted to room: {room}")
+    print(f"Message data: {{'message': '{message}', 'username': '{username}', 'timestamp': '{timestamp}'}}")
+
+# --- WebRTC signaling for video calls ---
+@socketio.on('join_call')
+def on_join_call(data):
+    room_id = data.get('room_id')
+    if not room_id:
+        return
+    join_room(room_id)
+    emit('call_event', {
+        'type': 'user-joined',
+        'user': current_user.get_id()
+    }, room=room_id, include_self=False)
+
+@socketio.on('leave_call')
+def on_leave_call(data):
+    room_id = data.get('room_id')
+    if not room_id:
+        return
+    leave_room(room_id)
+    emit('call_event', {
+        'type': 'user-left',
+        'user': current_user.get_id()
+    }, room=room_id, include_self=False)
+
+@socketio.on('webrtc_offer')
+def on_webrtc_offer(data):
+    room_id = data.get('room_id')
+    offer = data.get('offer')
+    to = data.get('to')
+    payload = {
+        'type': 'offer',
+        'from': current_user.get_id(),
+        'offer': offer
+    }
+    if to:
+        emit('call_event', payload, to=to)
+    else:
+        emit('call_event', payload, room=room_id, include_self=False)
+
+@socketio.on('webrtc_answer')
+def on_webrtc_answer(data):
+    room_id = data.get('room_id')
+    answer = data.get('answer')
+    to = data.get('to')
+    payload = {
+        'type': 'answer',
+        'from': current_user.get_id(),
+        'answer': answer
+    }
+    if to:
+        emit('call_event', payload, to=to)
+    else:
+        emit('call_event', payload, room=room_id, include_self=False)
+
+@socketio.on('webrtc_ice_candidate')
+def on_webrtc_ice_candidate(data):
+    room_id = data.get('room_id')
+    candidate = data.get('candidate')
+    to = data.get('to')
+    payload = {
+        'type': 'ice-candidate',
+        'from': current_user.get_id(),
+        'candidate': candidate
+    }
+    if to:
+        emit('call_event', payload, to=to)
+    else:
+        emit('call_event', payload, room=room_id, include_self=False)
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

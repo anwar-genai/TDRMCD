@@ -204,3 +204,17 @@ class VideoCall(db.Model):
     
     def __repr__(self):
         return f'<VideoCall {self.title}>'
+
+class ChatRoom(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    is_private = db.Column(db.Boolean, default=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    creator = db.relationship('User', backref='created_chat_rooms')
+
+    def __repr__(self):
+        return f'<ChatRoom {self.room_id}>'

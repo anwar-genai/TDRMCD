@@ -12,20 +12,7 @@
                     <a class="btn btn-outline-secondary" href="{{ url_for('community.video_calls') }}"><i class="fas fa-arrow-left me-1"></i>Back</a>
                 </div>
                 <div class="card-body">
-                    <div class="video-container" style="height: 500px;">
-                        <div class="d-flex h-100 align-items-center justify-content-center text-muted">
-                            <div class="text-center">
-                                <i class="fas fa-video fa-3x mb-3"></i>
-                                <div>Video call UI placeholder</div>
-                                <small>Integrate WebRTC/Jitsi/3rd-party service here</small>
-                            </div>
-                        </div>
-                        <div class="video-controls">
-                            <button class="btn btn-light" title="Mute"><i class="fas fa-microphone"></i></button>
-                            <button class="btn btn-light" title="Camera"><i class="fas fa-video"></i></button>
-                            <button class="btn btn-danger" title="Leave"><i class="fas fa-phone-slash"></i></button>
-                        </div>
-                    </div>
+                    <div id="jitsi-container" style="height: 500px; width: 100%;"></div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
                     <div class="text-muted small">Room ID: {{ video_call.room_id }}</div>
@@ -37,4 +24,31 @@
 </div>
 {% endblock %}
 
+
+{% block extra_js %}
+<script src="https://meet.jit.si/external_api.js"></script>
+<script>
+const roomId = "{{ video_call.room_id }}";
+const domain = 'meet.jit.si';
+const options = {
+    roomName: roomId,
+    parentNode: document.querySelector('#jitsi-container'),
+    userInfo: {
+        displayName: "{{ current_user.get_full_name() if current_user.is_authenticated else 'Guest' }}"
+    },
+    configOverwrite: {
+        prejoinConfig: { enabled: true }
+    },
+    interfaceConfigOverwrite: {}
+};
+let api = null;
+function initJitsi() {
+    api = new JitsiMeetExternalAPI(domain, options);
+    api.addListener('videoConferenceLeft', () => {
+        window.location.href = "{{ url_for('community.video_calls') }}";
+    });
+}
+document.addEventListener('DOMContentLoaded', initJitsi);
+</script>
+{% endblock %}
 

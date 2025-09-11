@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - {{ room_id }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" data-room="{{ room_id }}">
+
+    
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card chat-container">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-hashtag me-2"></i>{{ room_id }}</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="connection-status text-muted small"></div>
+                        <button class="btn btn-sm btn-outline-info" onclick="testConnection()">Test</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="chat-messages" id="chat-messages" data-username="{{ current_user.username }}">
+                        {% for m in messages %}
+                        <div class="message {% if m.sender_id == current_user.id %}own{% else %}other{% endif %}">
+                            <div class="message-content">{{ m.content }}</div>
+                            <div class="message-time">{{ m.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="border-top p-3">
+                        <form id="message-form" class="message-form">
+                            <div class="input-group">
+                                <input type="text" class="form-control message-input" placeholder="Type a message..." maxlength="500">
+                                <button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Enhanced Socket.IO implementation with better error handling
+let socket = null;
+let roomId = '{{ room_id }}';
+let isConnected = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing chat room:', roomId);
+    
+    // Initialize socket connection with options
+    socket = io({
+        transports: ['websocket', 'polling'],
+        upgrade: true,
+        rememberUpgrade: true
+    });
+    window.socket = socket;
+    
+    // Connection events
+    socket.on('connect', function() {
+        console.log('✅ Connected to server');
+        isConnected = true;
+        updateConnectionStatus(true);
+        
+        // Join the room immediately after connection
+        console.log('Joining room:', roomId);
+        socket.emit('join_chat', { room: roomId });
+    });
+    
+    socket.on('disconnect', function() {
+        console.log('❌ Disconnected from server');
+        isConnected = false;
+        updateConnectionStatus(false);
+    });
+    
+    socket.on('connect_error', function(error) {
+        console.error('❌ Connection error:', error);
+        isConnected = false;
+        updateConnectionStatus(false);
+    });
+    
+    socket.on('reconnect', function() {
+        console.log('🔄 Reconnected to server');
+        isConnected = true;
+        updateConnectionStatus(true);
+        // Rejoin room after reconnection
+        socket.emit('join_chat', { room: roomId });
+    });
+    
+    // Message events
+    socket.on('receive_message', function(data) {
+        console.log('📨 Received message:', data);
+        appendMessage(data);
+    });
+    
+    socket.on('user_joined', function(data) {
+        console.log('👤 User joined:', data);
+        displaySystemMessage(`${data.username} joined the room`);
+    });
+    
+    socket.on('user_left', function(data) {
+        console.log('👋 User left:', data);
+        displaySystemMessage(`${data.username} left the room`);
+    });
+    
+    // Message form handling
+    document.getElementById('message-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const input = document.querySelector('.message-input');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        if (!isConnected) {
+            console.error('❌ Cannot send message: not connected to server');
+            alert('Not connected to server. Please refresh the page.');
+            return;
+        }
+        
+        console.log('📤 Sending message:', text, 'to room:', roomId);
+        socket.emit('send_message', { room: roomId, message: text });
+        input.value = '';
+    });
+    
+    // Enter key handling
+    document.querySelector('.message-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('message-form').dispatchEvent(new Event('submit'));
+        }
+    });
+    
+    // Leave room on page unload
+    window.addEventListener('beforeunload', function() {
+        if (socket && isConnected) {
+            socket.emit('leave_chat', { room: roomId });
+        }
+    });
+    
+    // Test connection every 5 seconds
+    setInterval(function() {
+        if (socket && !isConnected) {
+            console.log('🔄 Attempting to reconnect...');
+            socket.connect();
+        }
+    }, 5000);
+});
+
+function appendMessage(data) {
+    const box = document.getElementById('chat-messages');
+    const own = data.username === '{{ current_user.username }}';
+    const div = document.createElement('div');
+    div.className = `message ${own ? 'own' : 'other'}`;
+    
+    // Format timestamp properly
+    const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString();
+    
+    div.innerHTML = `<div class="message-content">${escapeHtml(data.message)}</div><div class="message-time">${timestamp}</div>`;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function displaySystemMessage(message) {
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return;
+
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message system text-center text-muted';
+    messageElement.innerHTML = `<small><em>${escapeHtml(message)}</em></small>`;
+
+    messagesContainer.appendChild(messageElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function updateConnectionStatus(connected) {
+    const statusIndicator = document.querySelector('.connection-status');
+    if (statusIndicator) {
+        statusIndicator.className = `connection-status small ${connected ? 'text-success' : 'text-danger'}`;
+        statusIndicator.innerHTML = `<i class="fas fa-circle me-1"></i>${connected ? 'Connected' : 'Disconnected'}`;
+    }
+}
+
+function testConnection() {
+    console.log('🧪 Testing Socket.IO connection...');
+    console.log('Socket connected:', isConnected);
+    console.log('Socket object:', socket);
+    
+    if (socket && isConnected) {
+        console.log('📤 Sending test message...');
+        socket.emit('send_message', { room: roomId, message: 'Test message from button' });
+    } else {
+        console.log('❌ Socket not connected, attempting to reconnect...');
+        if (socket) {
+            socket.connect();
+        }
+    }
+}
+</script>
+{% endblock %}
+
+

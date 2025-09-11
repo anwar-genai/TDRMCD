@@ -86,6 +86,7 @@
 {% block extra_js %}
 <script>
 // Global variables
+let socket = null;
 let roomId = '{{ room_id }}';
 let isConnected = false;
 let reconnectAttempts = 0;
@@ -104,55 +105,23 @@ function showLoadingOverlay() {
 }
 
 function hideLoadingOverlay() {
-    const overlay = document.getElementById('loading-overlay');
-    if (overlay) {
-        overlay.style.display = 'none';
-        // Hard remove to prevent it from reappearing due to any CSS/logic
-        if (overlay.parentNode) {
-            overlay.parentNode.removeChild(overlay);
-        }
-    }
+    document.getElementById('loading-overlay').style.display = 'none';
 }
 
 function initializeSocket() {
     console.log('🔌 Initializing Socket.IO connection...');
     
-    // Reuse existing global socket if available, otherwise create one
-    if (window.socket) {
-        console.log('♻️ Reusing existing socket instance');
-        if (!window.socket.connected) {
-            window.socket.connect();
-        } else {
-            // Already connected; ensure UI reflects this and join room
-            isConnected = true;
-            updateConnectionStatus(true);
-            hideLoadingOverlay();
-            console.log('🚪 Joining room:', roomId);
-            window.socket.emit('join_chat', { room: roomId });
-        }
-    } else {
-        // Create socket connection
-        const created = io({
-            transports: ['websocket', 'polling'],
-            upgrade: true,
-            rememberUpgrade: true,
-            timeout: 20000,
-            forceNew: false
-        });
-        window.socket = created;
-    }
+    // Create socket connection
+    socket = io({
+        transports: ['websocket', 'polling'],
+        upgrade: true,
+        rememberUpgrade: true,
+        timeout: 20000,
+        forceNew: true
+    });
     
-    // Avoid duplicate handlers if reusing socket
-    window.socket.off('connect');
-    window.socket.off('disconnect');
-    window.socket.off('connect_error');
-    window.socket.off('reconnect');
-    window.socket.off('receive_message');
-    window.socket.off('user_joined');
-    window.socket.off('user_left');
-
     // Connection events
-    window.socket.on('connect', function() {
+    socket.on('connect', function() {
         console.log('✅ Connected to server');
         isConnected = true;
         reconnectAttempts = 0;
@@ -161,50 +130,41 @@ function initializeSocket() {
         
         // Join the room
         console.log('🚪 Joining room:', roomId);
-        window.socket.emit('join_chat', { room: roomId });
-
-        // Failsafe: ensure overlay is gone shortly after connect
-        setTimeout(hideLoadingOverlay, 300);
+        socket.emit('join_chat', { room: roomId });
     });
     
-    window.socket.on('disconnect', function() {
+    socket.on('disconnect', function() {
         console.log('❌ Disconnected from server');
         isConnected = false;
         updateConnectionStatus(false);
     });
     
-    window.socket.on('connect_error', function(error) {
+    socket.on('connect_error', function(error) {
         console.error('❌ Connection error:', error);
         isConnected = false;
         updateConnectionStatus(false);
         handleReconnection();
     });
     
-    window.socket.on('reconnect', function() {
+    socket.on('reconnect', function() {
         console.log('🔄 Reconnected to server');
         isConnected = true;
         updateConnectionStatus(true);
-        window.socket.emit('join_chat', { room: roomId });
+        socket.emit('join_chat', { room: roomId });
     });
     
     // Message events
-    window.socket.on('receive_message', function(data) {
+    socket.on('receive_message', function(data) {
         console.log('📨 Received message:', data);
         addMessageToChat(data);
     });
     
-    window.socket.on('user_joined', function(data) {
+    socket.on('user_joined', function(data) {
         console.log('👤 User joined:', data);
         addSystemMessage(`${data.username} joined the room`, 'success');
-        // Additional failsafe in case connect handler missed
-        if (!isConnected) {
-            isConnected = true;
-            updateConnectionStatus(true);
-        }
-        hideLoadingOverlay();
     });
     
-    window.socket.on('user_left', function(data) {
+    socket.on('user_left', function(data) {
         console.log('👋 User left:', data);
         addSystemMessage(`${data.username} left the room`, 'info');
     });
@@ -233,8 +193,8 @@ function setupEventListeners() {
     
     // Leave room on page unload
     window.addEventListener('beforeunload', function() {
-        if (window.socket && isConnected) {
-            window.socket.emit('leave_chat', { room: roomId });
+        if (socket && isConnected) {
+            socket.emit('leave_chat', { room: roomId });
         }
     });
 }

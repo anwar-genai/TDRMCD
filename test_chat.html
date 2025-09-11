@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Chat Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+</head>
+<body>
+    <h1>Socket.IO Chat Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type a message...">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        const socket = io();
+        const status = document.getElementById('status');
+        const messages = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+
+        socket.on('connect', function() {
+            status.textContent = 'Connected to server';
+            console.log('Connected to server');
+            
+            // Join a test room
+            socket.emit('join_chat', { room: 'test-room' });
+        });
+
+        socket.on('disconnect', function() {
+            status.textContent = 'Disconnected from server';
+            console.log('Disconnected from server');
+        });
+
+        socket.on('connect_error', function(error) {
+            status.textContent = 'Connection error: ' + error;
+            console.error('Connection error:', error);
+        });
+
+        socket.on('receive_message', function(data) {
+            console.log('Received message:', data);
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = `${data.username}: ${data.message}`;
+            messages.appendChild(messageDiv);
+        });
+
+        socket.on('user_joined', function(data) {
+            console.log('User joined:', data);
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = `${data.username} joined the room`;
+            messageDiv.style.color = 'green';
+            messages.appendChild(messageDiv);
+        });
+
+        socket.on('user_left', function(data) {
+            console.log('User left:', data);
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = `${data.username} left the room`;
+            messageDiv.style.color = 'red';
+            messages.appendChild(messageDiv);
+        });
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message) {
+                console.log('Sending message:', message);
+                socket.emit('send_message', { room: 'test-room', message: message });
+                messageInput.value = '';
+            }
+        }
+
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

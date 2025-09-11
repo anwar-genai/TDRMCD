@@ -12,16 +12,35 @@
                     <h5 class="mb-0"><i class="fas fa-comments me-2"></i>Chat Rooms</h5>
                 </div>
                 <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
+                    <div class="list-group list-group-flush" id="rooms-list">
+                        <!-- Default Rooms -->
                         {% for room in rooms %}
                         <a href="{{ url_for('community.chat_room', room_id=room.id) }}" 
-                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center room-link"
+                           data-room-id="{{ room.id }}">
                             <div>
                                 <i class="fas fa-hashtag me-2 text-muted"></i>{{ room.name }}
                             </div>
                             <span class="badge bg-primary rounded-pill" id="room-{{ room.id }}-count">0</span>
                         </a>
                         {% endfor %}
+                        
+                        <!-- Database Rooms -->
+                        {% for room in db_rooms %}
+                        <a href="{{ url_for('community.chat_room', room_id=room.room_id) }}" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center room-link"
+                           data-room-id="{{ room.room_id }}">
+                            <div>
+                                <i class="fas fa-hashtag me-2 text-muted"></i>{{ room.name }}
+                                {% if room.is_private %}
+                                    <i class="fas fa-lock ms-1 text-warning" title="Private Room"></i>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-primary rounded-pill" id="room-{{ room.room_id }}-count">0</span>
+                        </a>
+                        {% endfor %}
+                        
+                        <div id="custom-rooms-anchor"></div>
                     </div>
                 </div>
                 <div class="card-footer">
@@ -56,55 +75,66 @@
 
         <!-- Main Chat Area -->
         <div class="col-lg-9 col-md-8">
-            <div class="card chat-container">
-                <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card shadow-sm chat-container">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0">
-                            <i class="fas fa-hashtag me-2"></i>
-                            <span id="current-room-name">Select a room to start chatting</span>
+                            <i class="fas fa-comments me-2"></i>
+                            <span id="current-room-name">TDRMCD Community Chat</span>
                         </h5>
-                        <small class="text-muted" id="room-description">Choose a chat room from the sidebar</small>
+                        <small class="opacity-75" id="room-description">Connect with the community</small>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="toggleVideoCall()">
-                            <i class="fas fa-video me-1"></i>Video Call
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="connection-status badge bg-light text-dark me-2">
+                            <i class="fas fa-circle me-1 text-warning"></i>Connecting...
+                        </div>
+                        <button class="btn btn-light btn-sm" onclick="toggleVideoCall()" title="Start Video Call">
+                            <i class="fas fa-video"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="shareScreen()">
-                            <i class="fas fa-desktop me-1"></i>Share
+                        <button class="btn btn-light btn-sm" onclick="shareScreen()" title="Share Screen">
+                            <i class="fas fa-desktop"></i>
                         </button>
                     </div>
                 </div>
                 
                 <div class="card-body p-0">
                     <!-- Chat Messages -->
-                    <div class="chat-messages" id="chat-messages" data-username="{{ current_user.username }}">
+                    <div class="chat-messages" id="chat-messages" data-username="{{ current_user.username }}" style="height: 400px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
                         <div class="text-center py-5 text-muted">
-                            <i class="fas fa-comments fa-3x mb-3"></i>
-                            <h5>Welcome to TDRMCD Chat</h5>
-                            <p>Select a room to start participating in community discussions</p>
+                            <div class="mb-4">
+                                <i class="fas fa-comments fa-4x text-primary mb-3"></i>
+                            </div>
+                            <h4 class="text-primary">Welcome to TDRMCD Chat</h4>
+                            <p class="lead">Select a room from the sidebar to start participating in community discussions</p>
+                            <div class="mt-4">
+                                <span class="badge bg-primary me-2">Real-time messaging</span>
+                                <span class="badge bg-success me-2">File sharing</span>
+                                <span class="badge bg-info">Video calls</span>
+                            </div>
                         </div>
                     </div>
                     
                     <!-- Message Input -->
-                    <div class="chat-input border-top p-3">
+                    <div class="chat-input border-top bg-white p-3">
                         <form class="message-form" id="message-form">
                             <div class="input-group">
                                 <input type="text" class="form-control message-input" 
-                                       placeholder="Type your message..." 
+                                       placeholder="Select a room to start chatting..." 
                                        maxlength="500"
                                        disabled>
                                 <button class="btn btn-primary" type="submit" disabled>
                                     <i class="fas fa-paper-plane"></i>
                                 </button>
-                                <button class="btn btn-outline-secondary" type="button" onclick="toggleEmojiPicker()">
+                                <button class="btn btn-outline-secondary" type="button" onclick="toggleEmojiPicker()" title="Emoji">
                                     <i class="fas fa-smile"></i>
                                 </button>
-                                <button class="btn btn-outline-secondary" type="button" onclick="attachFile()">
+                                <button class="btn btn-outline-secondary" type="button" onclick="attachFile()" title="Attach File">
                                     <i class="fas fa-paperclip"></i>
                                 </button>
                             </div>
-                            <div class="small text-muted mt-1">
-                                Press Enter to send • Shift+Enter for new line
+                            <div class="small text-muted mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Press Enter to send • Messages are saved automatically
                             </div>
                         </form>
                     </div>
@@ -123,7 +153,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="create-room-form">
+                <form id="create-room-form" method="post" action="{{ url_for('community.create_chat_room') }}">
                     <div class="mb-3">
                         <label class="form-label">Room Name</label>
                         <input type="text" class="form-control" name="room_name" required>
@@ -184,36 +214,141 @@
 {% block extra_js %}
 <script>
 let currentRoom = null;
-let socket = io();
+let socket = null;
 
-// Socket.IO event listeners
-socket.on('connect', function() {
-    console.log('Connected to chat server');
-    updateConnectionStatus(true);
+// Initialize socket when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initializing main chat');
+    
+    // Initialize socket connection
+    socket = io();
+    window.socket = socket;
+    
+    // Connection events
+    socket.on('connect', function() {
+        console.log('Connected to server');
+        updateConnectionStatus(true);
+        setupMainChat();
+    });
+    
+    socket.on('disconnect', function() {
+        console.log('Disconnected from server');
+        updateConnectionStatus(false);
+    });
+    
+    socket.on('connect_error', function(error) {
+        console.error('Connection error:', error);
+        updateConnectionStatus(false);
+    });
+    
+    // Only auto-join general room if we're on the main chat page (not a specific room)
+    const currentPath = window.location.pathname;
+    if (currentPath === '/community/chat' || currentPath.endsWith('/community/chat/')) {
+        setTimeout(() => {
+            joinRoom('general', 'General Discussion');
+        }, 500);
+    }
+
+    // Handle Create Room form
+    const createForm = document.getElementById('create-room-form');
+    if (createForm && !createForm.getAttribute('action')) {
+        // Legacy client-side creation fallback (only when no server action is set)
+        createForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const name = createForm.querySelector('input[name="room_name"]').value.trim();
+            if (!name) return;
+            const roomId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'room-' + Math.random().toString(36).slice(2, 8);
+            // Persist to localStorage for sidebar display
+            try {
+                const rooms = JSON.parse(localStorage.getItem('custom_chat_rooms') || '[]');
+                if (!rooms.find(r => r.id === roomId)) {
+                    rooms.push({ id: roomId, name });
+                    localStorage.setItem('custom_chat_rooms', JSON.stringify(rooms));
+                }
+            } catch (e) { /* ignore */ }
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('createRoomModal')).hide();
+            // Leave current room before redirecting
+            if (currentRoom) {
+                socket.emit('leave_chat', {room: currentRoom});
+            }
+            // Redirect to dedicated room page (persists history and URL)
+            window.location.href = `/community/chat/${roomId}`;
+        });
+    }
+
+    // If ?create=1 is present, open the Create Room modal automatically
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('create') === '1') {
+        const modal = new bootstrap.Modal(document.getElementById('createRoomModal'));
+        modal.show();
+    }
+
+    // Add click handlers to all room links
+    document.querySelectorAll('.room-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            if (currentRoom) {
+                socket.emit('leave_chat', {room: currentRoom});
+            }
+        });
+    });
+
+    // Render custom rooms from localStorage into sidebar
+    try {
+        const rooms = JSON.parse(localStorage.getItem('custom_chat_rooms') || '[]');
+        const anchor = document.getElementById('custom-rooms-anchor');
+        if (anchor && rooms.length > 0) {
+            const container = anchor.parentElement;
+            rooms.forEach(r => {
+                const a = document.createElement('a');
+                a.href = `/community/chat/${r.id}`;
+                a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                a.innerHTML = `<div><i class="fas fa-hashtag me-2 text-muted"></i>${escapeHtml(r.name)}</div><span class="badge bg-primary rounded-pill" id="room-${r.id}-count">0</span>`;
+                
+                // Add click handler to leave current room before navigating
+                a.addEventListener('click', function(e) {
+                    if (currentRoom) {
+                        socket.emit('leave_chat', {room: currentRoom});
+                    }
+                });
+                
+                container.insertBefore(a, anchor);
+            });
+        }
+    } catch (e) { /* ignore */ }
 });
 
-socket.on('disconnect', function() {
-    console.log('Disconnected from chat server');
-    updateConnectionStatus(false);
-});
+function setupMainChat() {
+    console.log('Setting up main chat');
+    
+    // Socket event listeners
+    socket.on('receive_message', function(data) {
+        console.log('Received message:', data);
+        displayMessage(data);
+    });
 
-socket.on('receive_message', function(data) {
-    displayMessage(data);
-});
+    socket.on('user_joined', function(data) {
+        console.log('User joined:', data);
+        displaySystemMessage(`${data.username} joined the room`);
+        updateOnlineUsers();
+    });
 
-socket.on('user_joined', function(data) {
-    displaySystemMessage(`${data.username} joined the room`);
-    updateOnlineUsers();
-});
+    socket.on('user_left', function(data) {
+        console.log('User left:', data);
+        displaySystemMessage(`${data.username} left the room`);
+        updateOnlineUsers();
+    });
 
-socket.on('user_left', function(data) {
-    displaySystemMessage(`${data.username} left the room`);
-    updateOnlineUsers();
-});
-
-socket.on('room_created', function(data) {
-    addRoomToSidebar(data.room);
-});
+    socket.on('room_created', function(data) {
+        console.log('Room created:', data);
+        addRoomToSidebar(data.room);
+    });
+    
+    // Rejoin current room if we were in one
+    if (currentRoom) {
+        socket.emit('join_chat', {room: currentRoom});
+    }
+}
 
 // Join room function
 function joinRoom(roomId, roomName) {
@@ -291,14 +426,30 @@ function clearMessages() {
 }
 
 function loadRoomMessages(roomId) {
-    // This would typically load message history from the server
-    displaySystemMessage(`Joined ${roomId} room`);
+    // Load message history from the server
+    fetch(`/community/chat/${roomId}/messages`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.messages) {
+                data.messages.forEach(message => {
+                    displayMessage({
+                        message: message.content,
+                        username: message.sender.username,
+                        timestamp: new Date(message.timestamp).toLocaleString()
+                    });
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+            displaySystemMessage(`Joined ${roomId} room`);
+        });
 }
 
 function updateConnectionStatus(connected) {
     const statusIndicator = document.querySelector('.connection-status');
     if (statusIndicator) {
-        statusIndicator.className = `connection-status ${connected ? 'text-success' : 'text-danger'}`;
+        statusIndicator.className = `connection-status small me-2 ${connected ? 'text-success' : 'text-danger'}`;
         statusIndicator.innerHTML = `<i class="fas fa-circle me-1"></i>${connected ? 'Connected' : 'Disconnected'}`;
     }
 }
@@ -351,13 +502,6 @@ function uploadChatFile() {
     }
 }
 
-// Auto-join general room on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-join general room
-    setTimeout(() => {
-        joinRoom('general', 'General Discussion');
-    }, 500);
-});
 
 function escapeHtml(text) {
     const div = document.createElement('div');

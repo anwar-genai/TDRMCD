@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, CommunityPost, Comment, ChatMessage, FileSubmission, VideoCall, PostLike
+from models import db, CommunityPost, Comment, ChatMessage, FileSubmission, VideoCall, PostLike, ChatRoom
 from forms import CommunityPostForm, CommentForm, FileSubmissionForm
 from werkzeug.utils import secure_filename
 import os
@@ -138,15 +138,50 @@ def like_post(id):
 @community_bp.route('/chat')
 @login_required
 def chat():
-    # Get available chat rooms
-    rooms = [
+    # Optional: redirect to a specific room via query params
+    room_param = request.args.get('room')
+    room_name_param = request.args.get('room_name')
+    if room_param:
+        return redirect(url_for('community.chat_room', room_id=room_param))
+    if room_name_param:
+        slug = ''.join(c.lower() if c.isalnum() else '-' for c in room_name_param).strip('-') or f"room-{uuid.uuid4().hex[:6]}"
+        return redirect(url_for('community.chat_room', room_id=slug))
+
+    # Get available chat rooms (default + persisted)
+    default_rooms = [
         {'id': 'general', 'name': 'General Discussion'},
         {'id': 'resources', 'name': 'Resource Discussion'},
         {'id': 'help', 'name': 'Help & Support'},
         {'id': 'announcements', 'name': 'Announcements'}
     ]
-    
-    return render_template('community/chat.html', rooms=rooms)
+    db_rooms = ChatRoom.query.order_by(ChatRoom.created_at.desc()).all()
+    return render_template('community/chat.html', rooms=default_rooms, db_rooms=db_rooms)
+
+@community_bp.route('/chat/create', methods=['POST'])
+@login_required
+def create_chat_room():
+    name = request.form.get('room_name', '').strip()
+    description = request.form.get('room_description', '').strip()
+    room_type = request.form.get('room_type', 'public')
+    if not name:
+        flash('Room name is required', 'error')
+        return redirect(url_for('community.chat'))
+    slug = ''.join(c.lower() if c.isalnum() else '-' for c in name).strip('-') or f"room-{uuid.uuid4().hex[:6]}"
+    # Ensure unique slug
+    existing = ChatRoom.query.filter_by(room_id=slug).first()
+    if existing:
+        flash('Room already exists. Redirected to it.', 'info')
+        return redirect(url_for('community.chat_room', room_id=slug))
+    room = ChatRoom(
+        room_id=slug,
+        name=name,
+        description=description,
+        is_private=(room_type == 'private'),
+        created_by=current_user.id
+    )
+    db.session.add(room)
+    db.session.commit()
+    return redirect(url_for('community.chat_room', room_id=slug))
 
 @community_bp.route('/chat/<room_id>')
 @login_required
@@ -158,6 +193,49 @@ def chat_room(room_id):
     return render_template('community/chat_room.html',
                          room_id=room_id,
                          messages=messages)
+
+@community_bp.route('/chat/<room_id>/messages')
+@login_required
+def get_room_messages(room_id):
+    """API endpoint to get messages for a specific room"""
+    messages = ChatMessage.query.filter_by(room=room_id).order_by(ChatMessage.timestamp.asc()).limit(50).all()
+    
+    return jsonify({
+        'messages': [{
+            'id': msg.id,
+            'content': msg.content,
+            'timestamp': msg.timestamp.isoformat(),
+            'sender': {
+                'id': msg.sender.id,
+                'username': msg.sender.username
+            }
+        } for msg in messages]
+    })
+
+@community_bp.route('/chat/test')
+@login_required
+def test_chat():
+    """Test endpoint to check chat functionality"""
+    return jsonify({
+        'status': 'success',
+        'user': current_user.username,
+        'authenticated': current_user.is_authenticated,
+        'rooms': [{'id': room.room_id, 'name': room.name} for room in ChatRoom.query.all()],
+        'messages': ChatMessage.query.count()
+    })
+
+@community_bp.route('/chat/test-socket')
+@login_required
+def test_socket():
+    """Test Socket.IO functionality"""
+    from app import socketio
+    # Send a test message to all connected clients
+    socketio.emit('receive_message', {
+        'message': 'Test message from server',
+        'username': 'Server',
+        'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    }, room='general')
+    return jsonify({'status': 'Test message sent'})
 
 @community_bp.route('/video_call')
 @login_required

@@ -3,7 +3,12 @@
 // Initialize Socket.IO connection
 let socket = null;
 if (typeof io !== 'undefined') {
-    socket = io();
+    if (!window.socket) {
+        socket = io();
+        window.socket = socket;
+    } else {
+        socket = window.socket;
+    }
 }
 
 // Global variables
@@ -13,7 +18,8 @@ let notifications = [];
 // Document ready
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
-    initializeNotifications();
+    // Notifications API is not implemented yet; disable to avoid 404s
+    // initializeNotifications();
     initializeChat();
     initializeFileUpload();
     initializeMap();
@@ -87,13 +93,26 @@ function initializeNotifications() {
 
 function loadNotifications() {
     fetch('/api/notifications')
-        .then(response => response.json())
+        .then(async response => {
+            if (!response.ok) {
+                // 404 or other errors: skip without throwing JSON parse error
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error('Non-JSON response');
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.notifications) {
+            if (data && data.notifications) {
                 updateNotificationUI(data.notifications);
             }
         })
-        .catch(error => console.error('Error loading notifications:', error));
+        .catch(error => {
+            // Quietly ignore in development if endpoint not implemented
+            // console.warn('Notifications unavailable:', error.message);
+        });
 }
 
 function updateNotificationUI(notifications) {
