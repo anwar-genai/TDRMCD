@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - File Submissions{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0"><i class="fas fa-file-alt me-2"></i>File Submissions</h3>
+        <form class="d-flex" method="get">
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="all" {{ 'selected' if status == 'all' }}>All</option>
+                <option value="pending" {{ 'selected' if status == 'pending' }}>Pending</option>
+                <option value="approved" {{ 'selected' if status == 'approved' }}>Approved</option>
+                <option value="rejected" {{ 'selected' if status == 'rejected' }}>Rejected</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Submitter</th>
+                    <th>Category</th>
+                    <th>Size</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in submissions.items %}
+                <tr>
+                    <td>{{ s.id }}</td>
+                    <td>
+                        <div class="fw-semibold">{{ s.title }}</div>
+                        <div class="small text-muted">{{ s.original_filename }}</div>
+                    </td>
+                    <td>{{ s.submitter.username }}</td>
+                    <td><span class="badge bg-secondary">{{ s.category }}</span></td>
+                    <td>{{ (s.file_size or 0) // 1024 }} KB</td>
+                    <td>
+                        {% if s.status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                        {% elif s.status == 'approved' %}
+                            <span class="badge bg-success">Approved</span>
+                        {% else %}
+                            <span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-sm btn-outline-primary" href="/uploads/submissions/{{ s.filename }}" target="_blank">
+                                <i class="fas fa-download"></i>
+                            </a>
+                            {% if s.status == 'pending' %}
+                            <form method="post" action="{{ url_for('admin.review_file_submission', submission_id=s.id) }}" class="d-inline">
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="fas fa-check me-1"></i>Approve
+                                </button>
+                            </form>
+                            <form method="post" action="{{ url_for('admin.review_file_submission', submission_id=s.id) }}" class="d-inline">
+                                <input type="hidden" name="action" value="reject">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-times me-1"></i>Reject
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">No submissions found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if submissions.pages > 1 %}
+    <nav class="mt-3">
+        <ul class="pagination">
+            <li class="page-item {{ 'disabled' if not submissions.has_prev }}">
+                <a class="page-link" href="?page={{ submissions.prev_num }}&status={{ status }}">Previous</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page {{ submissions.page }} of {{ submissions.pages }}</span></li>
+            <li class="page-item {{ 'disabled' if not submissions.has_next }}">
+                <a class="page-link" href="?page={{ submissions.next_num }}&status={{ status }}">Next</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+

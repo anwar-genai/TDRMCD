@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, send_from_directory, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_migrate import Migrate
@@ -161,6 +161,27 @@ def on_webrtc_offer(data):
         emit('call_event', payload, to=to)
     else:
         emit('call_event', payload, room=room_id, include_self=False)
+
+# Serve uploaded files (e.g., submissions) safely
+@app.route('/uploads/<path:subdir>/<path:filename>')
+@login_required
+def serve_uploaded_file(subdir, filename):
+    uploads_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    directory = os.path.join(uploads_root, subdir)
+    
+    # Security check - ensure the path is within uploads directory
+    if not os.path.isdir(directory) or not os.path.commonpath([uploads_root, directory]) == uploads_root:
+        abort(404)
+    
+    file_path = os.path.join(directory, filename)
+    if not os.path.exists(file_path):
+        abort(404)
+    
+    try:
+        return send_from_directory(directory, filename, as_attachment=True)
+    except Exception as e:
+        print(f"Error serving file {filename}: {e}")
+        abort(404)
 
 @socketio.on('webrtc_answer')
 def on_webrtc_answer(data):
