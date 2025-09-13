@@ -5,7 +5,8 @@ from forms import CommunityPostForm, CommentForm, FileSubmissionForm
 from werkzeug.utils import secure_filename
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
+import jwt
 
 community_bp = Blueprint('community', __name__)
 
@@ -247,33 +248,239 @@ def video_calls():
 @login_required
 def create_video_call():
     if request.method == 'POST':
-        title = request.form.get('title')
-        description = request.form.get('description')
-        max_participants = request.form.get('max_participants', 10, type=int)
+        # Handle both form and JSON requests
+        if request.is_json:
+            data = request.get_json()
+            title = data.get('title')
+            description = data.get('description')
+            max_participants = data.get('max_participants', 10)
+        else:
+            title = request.form.get('title')
+            description = request.form.get('description')
+            max_participants = request.form.get('max_participants', 10, type=int)
         
         room_id = str(uuid.uuid4())
+        
+        chat_room = data.get('chat_room') if request.is_json else request.form.get('chat_room')
         
         video_call = VideoCall(
             room_id=room_id,
             title=title,
             description=description,
             host_id=current_user.id,
+            chat_room=chat_room,
             max_participants=max_participants
         )
         
         db.session.add(video_call)
         db.session.commit()
         
-        flash('Video call room created successfully!', 'success')
-        return redirect(url_for('community.video_call_room', room_id=room_id))
+        if request.is_json:
+            return jsonify({
+                'success': True,
+                'room_id': room_id,
+                'room_url': url_for('community.video_call_room', room_id=room_id)
+            })
+        else:
+            flash('Video call room created successfully!', 'success')
+            return redirect(url_for('community.video_call_room', room_id=room_id))
     
     return render_template('community/create_video_call.html')
+
+@community_bp.route('/video_call/check/<chat_room>')
+@login_required
+def check_video_call(chat_room):
+    """Check if there's an active video call for a chat room"""
+    video_call = VideoCall.query.filter_by(chat_room=chat_room, is_active=True).first()
+    
+    if video_call:
+        return jsonify({
+            'exists': True,
+            'room_id': video_call.room_id,
+            'room_url': url_for('community.video_call_room', room_id=video_call.room_id)
+        })
+    else:
+        return jsonify({'exists': False})
 
 @community_bp.route('/video_call/<room_id>')
 @login_required
 def video_call_room(room_id):
     video_call = VideoCall.query.filter_by(room_id=room_id).first_or_404()
-    return render_template('community/video_call_room.html', video_call=video_call)
+    
+    # JaaS (Jitsi as a Service) Configuration
+    jitsi_app_id = current_app.config.get('JITSI_APP_ID')
+    jitsi_app_secret = current_app.config.get('JITSI_APP_SECRET')
+    jwt_token = None
+    
+    # Generate JWT token for JaaS authentication using official JaaS format
+    jitsi_key_id = current_app.config.get('JITSI_KEY_ID')  # New: Key ID from JaaS console
+    
+    if jitsi_app_id and jitsi_app_secret and jitsi_key_id and jitsi_app_id != 'your-jaas-app-id-here':
+        try:
+            import time
+            
+            # Get user display name safely
+            user_name = current_user.username
+            if hasattr(current_user, 'first_name') and hasattr(current_user, 'last_name'):
+                if current_user.first_name and current_user.last_name:
+                    user_name = f"{current_user.first_name} {current_user.last_name}"
+            
+            # Get avatar URL safely
+            avatar_url = ""
+            if hasattr(current_user, 'avatar_url') and current_user.avatar_url:
+                avatar_url = url_for('static', filename=f'uploads/avatars/{current_user.avatar_url}', _external=True)
+            
+            # JaaS JWT payload structure matching official documentation
+            is_moderator = (video_call.host_id == current_user.id)
+            current_time = int(time.time())
+            
+            # JWT Header (required by JaaS)
+            headers = {
+                'alg': 'RS256',
+                'kid': jitsi_key_id,  # CRITICAL: Key ID from JaaS console
+                'typ': 'JWT'
+            }
+            
+            # JWT Payload (as per official JaaS documentation)
+            payload = {
+                'aud': 'jitsi',
+                'iss': 'chat',  # Hardcoded value as per docs
+                'sub': jitsi_app_id,
+                'room': '*',  # Wildcard for all rooms
+                'iat': current_time,
+                'exp': current_time + 7200,  # 2 hours
+                'nbf': current_time - 10,    # Not before
+                
+                'context': {
+                    'user': {
+                        'id': str(current_user.id),
+                        'name': user_name,
+                        'email': current_user.email,
+                        'avatar': avatar_url,
+                        'moderator': is_moderator  # Boolean, not string
+                    },
+                    'features': {
+                        'livestreaming': False,
+                        'recording': False,
+                        'transcription': False,
+                        'outbound-call': False,
+                        'sip-inbound-call': False,
+                        'sip-outbound-call': False
+                    }
+                }
+            }
+            
+            # Generate JWT token with headers (CRITICAL for JaaS)
+            jwt_token = jwt.encode(payload, jitsi_app_secret, algorithm='RS256', headers=headers)
+            
+            current_app.logger.info(f"Generated JaaS JWT token for room: {room_id}")
+            current_app.logger.info(f"User: {user_name} (ID: {current_user.id})")
+            current_app.logger.info(f"Moderator: {is_moderator}")
+            current_app.logger.info(f"App ID: {jitsi_app_id}")
+            current_app.logger.info(f"Key ID: {jitsi_key_id}")
+            
+        except Exception as e:
+            current_app.logger.error(f"Error generating JaaS JWT token: {e}")
+            current_app.logger.error(f"App ID: {jitsi_app_id}")
+            current_app.logger.error(f"Key ID: {jitsi_key_id}")
+            current_app.logger.error(f"Private key format check: {jitsi_app_secret.startswith('-----BEGIN') if jitsi_app_secret else False}")
+            jwt_token = None
+    else:
+        current_app.logger.info("JaaS not configured, using public Jitsi rooms")
+        current_app.logger.info(f"App ID: {jitsi_app_id}")
+        current_app.logger.info(f"App Secret configured: {bool(jitsi_app_secret)}")
+    
+    return render_template('community/video_call_room.html', 
+                         video_call=video_call, 
+                         jwt_token=jwt_token, 
+                         jitsi_app_id=jitsi_app_id)
+
+@community_bp.route('/video_call/test-jwt')
+@login_required
+def test_jwt():
+    """Test JWT generation for debugging"""
+    jitsi_app_id = current_app.config.get('JITSI_APP_ID')
+    jitsi_app_secret = current_app.config.get('JITSI_APP_SECRET')
+    
+    if not jitsi_app_id or not jitsi_app_secret:
+        return jsonify({
+            'error': 'JaaS not configured',
+            'app_id': jitsi_app_id,
+            'has_secret': bool(jitsi_app_secret)
+        })
+    
+    try:
+        import time
+        
+        # JaaS-compatible test payload
+        current_time = int(time.time())
+        payload = {
+            # Standard JWT claims
+            'aud': 'jitsi',
+            'iss': 'chat',
+            'sub': jitsi_app_id,
+            'room': '*',
+            'iat': current_time,
+            'exp': current_time + 3600,  # 1 hour
+            'nbf': current_time - 10,    # Not before
+            
+            # JaaS context
+            'context': {
+                'user': {
+                    'id': str(current_user.id),
+                    'name': current_user.username,
+                    'email': current_user.email,
+                    'avatar': '',
+                    'moderator': True
+                },
+                'features': {
+                    'livestreaming': False,
+                    'recording': False,
+                    'transcription': False,
+                    'outbound-call': False
+                }
+            }
+        }
+        
+        # Use RS256 algorithm for JaaS
+        token = jwt.encode(payload, jitsi_app_secret, algorithm='RS256')
+        
+        return jsonify({
+            'success': True,
+            'app_id': jitsi_app_id,
+            'payload': payload,
+            'token_preview': token[:50] + '...',
+            'secret_length': len(jitsi_app_secret)
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'app_id': jitsi_app_id,
+            'secret_length': len(jitsi_app_secret) if jitsi_app_secret else 0
+        })
+
+@community_bp.route('/video_call/<room_id>/end', methods=['POST'])
+@login_required
+def end_video_call(room_id):
+    video_call = VideoCall.query.filter_by(room_id=room_id).first_or_404()
+    
+    # Only the host can end the call
+    if video_call.host_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Only the host can end the call'})
+    
+    video_call.is_active = False
+    video_call.ended_at = datetime.utcnow()
+    db.session.commit()
+    
+    # Notify chat room that call ended
+    from app import socketio
+    if video_call.chat_room:
+        socketio.emit('video_call_ended', {
+            'message': f'Video call "{video_call.title}" has ended',
+            'video_room_id': room_id
+        }, room=video_call.chat_room)
+    
+    return jsonify({'success': True, 'message': 'Video call ended'})
 
 @community_bp.route('/files')
 @login_required

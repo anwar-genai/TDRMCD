@@ -11,44 +11,459 @@
                     <h5 class="mb-0"><i class="fas fa-video me-2"></i>{{ video_call.title }}</h5>
                     <a class="btn btn-outline-secondary" href="{{ url_for('community.video_calls') }}"><i class="fas fa-arrow-left me-1"></i>Back</a>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
+                    <!-- Custom Control Panel -->
+                    <div class="bg-dark text-white p-3 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-3">
+                            <h6 class="mb-0"><i class="fas fa-video me-2"></i>{{ video_call.title }}</h6>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-light" onclick="toggleAudio()" title="Toggle Microphone">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="toggleVideo()" title="Toggle Camera">
+                                    <i class="fas fa-video"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="toggleScreenShare()" title="Share Screen">
+                                    <i class="fas fa-desktop"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-light" onclick="toggleChat()" title="Toggle Chat">
+                                    <i class="fas fa-comments"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- Virtual Background using Jitsi's built-in dialog -->
+                            <button class="btn btn-sm btn-outline-light" type="button" onclick="toggleVirtualBackground()" title="Virtual Background">
+                                <i class="fas fa-magic"></i> Background
+                            </button>
+                            <button class="btn btn-sm btn-outline-light" onclick="toggleParticipants()" title="Participants">
+                                <i class="fas fa-users"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Jitsi Container -->
                     <div id="jitsi-container" style="height: 500px; width: 100%;"></div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
                     <div class="text-muted small">Room ID: {{ video_call.room_id }}</div>
-                    <div class="text-muted small">Host: {{ video_call.host.get_full_name() }}</div>
+                    <div class="d-flex gap-2">
+                        <div class="text-muted small">Host: 
+                            {% if video_call.host.first_name and video_call.host.last_name %}
+                                {{ video_call.host.first_name }} {{ video_call.host.last_name }}
+                            {% else %}
+                                {{ video_call.host.username }}
+                            {% endif %}
+                        </div>
+                        {% if video_call.host_id == current_user.id %}
+                        <button class="btn btn-sm btn-danger" onclick="openEndCallModal()">
+                            <i class="fas fa-phone-slash me-1"></i>End Call
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+ </div>
+ <!-- End Call Confirmation Modal -->
+<div class="modal fade" id="endCallModal" tabindex="-1" aria-labelledby="endCallModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="endCallModalLabel"><i class="fas fa-phone-slash me-2 text-danger"></i>End video call?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to end this video call for everyone?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmEndCallBtn">
+                    <i class="fas fa-phone-slash me-1"></i>End Call
+                </button>
+            </div>
+        </div>
+    </div>
+ </div>
+ <!-- Prejoin/Waiting Cancel Button -->
+ <button id="prejoinCancelBtn" class="btn btn-outline-light position-fixed" style="top: 90px; right: 24px; z-index: 1080; display: none;">
+     <i class="fas fa-times me-1"></i> Cancel
+ </button>
 {% endblock %}
 
 
 {% block extra_js %}
-<script src="https://meet.jit.si/external_api.js"></script>
+<script src="https://meet.jit.si/external_api.js" onerror="handleJitsiLoadError()"></script>
 <script>
+function handleJitsiLoadError() {
+    console.error('Failed to load Jitsi Meet API');
+    document.querySelector('#jitsi-container').innerHTML = '<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load Jitsi Meet API. Please check your internet connection and refresh the page.</div>';
+}
 const roomId = "{{ video_call.room_id }}";
-const domain = 'meet.jit.si';
+const jitsiAppId = "{{ jitsi_app_id|default('') }}";
+const isJaaS = jitsiAppId && jitsiAppId !== '' && jitsiAppId !== 'your-jaas-app-id-here';
+const domain = isJaaS ? '8x8.vc' : 'meet.jit.si';
+
+// JaaS room names must follow the format: vpaas-magic-cookie-<appId>/<roomName>
+// Public Jitsi rooms can use any format
+const roomName = isJaaS ? `vpaas-magic-cookie-${jitsiAppId}/${roomId}` : `tdrmcd_${roomId}`;
+
 const options = {
-    roomName: roomId,
+    roomName: roomName,
     parentNode: document.querySelector('#jitsi-container'),
+    {% if jwt_token %}
+    jwt: "{{ jwt_token }}",
+    {% endif %}
     userInfo: {
-        displayName: "{{ current_user.get_full_name() if current_user.is_authenticated else 'Guest' }}"
+        displayName: "{% if current_user.is_authenticated %}{% if current_user.first_name and current_user.last_name %}{{ current_user.first_name }} {{ current_user.last_name }}{% else %}{{ current_user.username }}{% endif %}{% else %}Guest{% endif %}",
+        email: "{{ current_user.email if current_user.is_authenticated else '' }}"
     },
     configOverwrite: {
-        prejoinConfig: { enabled: true }
+        // Configuration that works for both JaaS and public rooms
+        startWithAudioMuted: false,
+        startWithVideoMuted: false,
+        enableWelcomePage: false,
+        enableClosePage: false,
+        prejoinPageEnabled: false,  // Skip prejoin for better UX
+        
+        // Moderator features (work with JaaS)
+        disableModeratorIndicator: false,
+        enableLobby: false,
+        requireDisplayName: false,
+        
+        // Video quality settings
+        resolution: 720,
+        constraints: {
+            video: {
+                height: {
+                    ideal: 720,
+                    max: 720,
+                    min: 240
+                }
+            }
+        },
+        
+        // Features configuration
+        enableInsecureRoomNameWarning: false,
+        disableDeepLinking: true,
+        disableInviteFunctions: false,
+        doNotStoreRoom: true,
+        
+        // Performance settings
+        enableLayerSuspension: true,
+        p2p: {
+            enabled: true
+        },
+        
+        // JaaS specific features (ignored in public rooms)
+        enableNoisyMicDetection: true,
+        enableTalkWhileMuted: true,
+        disableReactions: false,
+        disablePolls: false,
+        toolbarButtons: [
+            'microphone', 'camera', 'desktop', 'fullscreen',
+            'fodeviceselection', 'hangup', 'chat', 'settings',
+            'videoquality', 'filmstrip', 'participants',
+            'tileview', 'videobackgroundblur', 'raisehand'
+        ]
     },
-    interfaceConfigOverwrite: {}
+    interfaceConfigOverwrite: {
+        // Minimal toolbar configuration
+        TOOLBAR_BUTTONS: [
+            'microphone', 'camera', 'desktop', 'fullscreen',
+            'fodeviceselection', 'hangup', 'chat', 'settings',
+            'videoquality', 'filmstrip', 'participants-pane',
+            'tileview', 'videobackgroundblur'
+        ],
+        SETTINGS_SECTIONS: [
+            'devices', 'language', 'profile'
+        ],
+        SHOW_JITSI_WATERMARK: false,
+        SHOW_BRAND_WATERMARK: false,
+        SHOW_POWERED_BY: false,
+        DISABLE_VIDEO_BACKGROUND: false,
+        MOBILE_APP_PROMO: false
+    }
 };
 let api = null;
+let isVirtualBackgroundEnabled = false;
+
 function initJitsi() {
-    api = new JitsiMeetExternalAPI(domain, options);
+    const mode = isJaaS ? 'JaaS' : 'Public';
+    console.log(`🎥 Initializing Jitsi Meet (${mode} mode)...`);
+    console.log('Room:', roomName);
+    console.log('Domain:', domain);
+    console.log('App ID:', jitsiAppId);
+    console.log('Has JWT:', {% if jwt_token %}true{% else %}false{% endif %});
+    {% if jwt_token %}
+    console.log('JWT Token (first 50 chars):', "{{ jwt_token[:50] }}...");
+    {% endif %}
+    console.log('Options:', options);
+    
+    try {
+        api = new JitsiMeetExternalAPI(domain, options);
+    } catch (error) {
+        console.error('Failed to initialize Jitsi Meet:', error);
+        document.querySelector('#jitsi-container').innerHTML = '<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load video call. Please check your internet connection and try again.</div>';
+        return;
+    }
+    
+    // Connection events
     api.addListener('videoConferenceLeft', () => {
+        console.log('👋 Left video conference');
         window.location.href = "{{ url_for('community.video_calls') }}";
     });
+
+    api.addListener('videoConferenceJoined', () => {
+        console.log('✅ Joined video conference');
+        hasJoined = true;
+        hidePrejoinCancel();
+        
+        // Set display name after joining
+        api.executeCommand('displayName', '{% if current_user.is_authenticated %}{% if current_user.first_name and current_user.last_name %}{{ current_user.first_name }} {{ current_user.last_name }}{% else %}{{ current_user.username }}{% endif %}{% else %}Guest{% endif %}');
+    });
+    
+    // Ready event - fired when Jitsi is fully loaded
+    api.addListener('readyToClose', () => {
+        console.log('Jitsi Meet is ready to close');
+        window.location.href = "{{ url_for('community.video_calls') }}";
+    });
+
+    // Handle participant events
+    api.addListener('participantJoined', (participant) => {
+        console.log('👤 Participant joined:', participant.displayName);
+    });
+
+    api.addListener('participantLeft', (participant) => {
+        console.log('👋 Participant left:', participant.displayName);
+    });
+
+    // Handle audio/video events
+    api.addListener('audioMuteStatusChanged', (data) => {
+        console.log('🔇 Audio mute status changed:', data);
+    });
+
+    api.addListener('videoMuteStatusChanged', (data) => {
+        console.log('📹 Video mute status changed:', data);
+    });
+
+    // Show cancel while in prejoin (before join event fires)
+    showPrejoinCancel();
 }
-document.addEventListener('DOMContentLoaded', initJitsi);
+
+// Virtual backgrounds are handled by Jitsi's built-in UI
+function toggleVirtualBackground() {
+    try {
+        if (api) {
+            // Open settings panel to virtual background section
+            api.executeCommand('toggleVirtualBackgroundDialog');
+        }
+    } catch (e) {
+        console.warn('Unable to toggle virtual background dialog:', e);
+    }
+}
+
+function toggleAudio() {
+    try {
+        if (api) {
+            api.executeCommand('toggleAudio');
+        }
+    } catch (e) {
+        console.warn('Unable to toggle audio:', e);
+    }
+}
+
+function toggleVideo() {
+    try {
+        if (api) {
+            api.executeCommand('toggleVideo');
+        }
+    } catch (e) {
+        console.warn('Unable to toggle video:', e);
+    }
+}
+
+function toggleScreenShare() {
+    try {
+        if (api) {
+            api.executeCommand('toggleShareScreen');
+        }
+    } catch (e) {
+        console.warn('Unable to toggle screen share:', e);
+    }
+}
+
+function toggleChat() {
+    try {
+        if (api) {
+            api.executeCommand('toggleChat');
+        }
+    } catch (e) {
+        console.warn('Unable to toggle chat:', e);
+    }
+}
+
+function toggleParticipants() {
+    try {
+        if (api) {
+            // Use the correct command for participants pane
+            api.executeCommand('toggleParticipantsPane', true);
+        }
+    } catch (e) {
+        console.warn('Unable to toggle participants:', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Jitsi API is loaded
+    if (typeof JitsiMeetExternalAPI === 'undefined') {
+        console.error('JitsiMeetExternalAPI is not defined');
+        document.querySelector('#jitsi-container').innerHTML = '<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i>Video call service is unavailable. Please refresh the page or try again later.</div>';
+        return;
+    }
+    initJitsi();
+});
+
+function openEndCallModal() {
+    const modalEl = document.getElementById('endCallModal');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    const confirmBtn = document.getElementById('confirmEndCallBtn');
+    // Avoid attaching multiple listeners
+    confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+    const freshConfirmBtn = document.getElementById('confirmEndCallBtn');
+    freshConfirmBtn.addEventListener('click', reallyEndVideoCall);
+}
+
+function reallyEndVideoCall() {
+    const btn = document.getElementById('confirmEndCallBtn');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Ending...';
+    
+    fetch(`/community/video_call/{{ video_call.room_id }}/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('endCallModal'));
+            if (modal) modal.hide();
+            window.location.href = "{{ url_for('community.video_calls') }}";
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            console.error('Failed to end call:', data.message);
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        console.error('Error ending video call:', err);
+    });
+}
+
+
+// Prejoin cancel support: show button before joined and hide after join
+let hasJoined = false;
+function showPrejoinCancel() {
+    const btn = document.getElementById('prejoinCancelBtn');
+    if (btn && !hasJoined) btn.style.display = 'inline-block';
+}
+function hidePrejoinCancel() {
+    const btn = document.getElementById('prejoinCancelBtn');
+    if (btn) btn.style.display = 'none';
+}
+document.getElementById('prejoinCancelBtn')?.addEventListener('click', () => {
+    // Hangup and return
+    try { api?.executeCommand('hangup'); } catch (e) {}
+    window.location.href = "{{ url_for('community.video_calls') }}";
+});
 </script>
+
+<style>
+/* Enhanced video call room styles */
+.card {
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#jitsi-container {
+    border-radius: 0 0 0.375rem 0.375rem;
+    overflow: hidden;
+}
+
+.bg-dark {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+}
+
+.btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 0.375rem;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-item i {
+    width: 16px;
+    text-align: center;
+}
+
+/* Loading animation for buttons */
+.btn .fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .d-flex.gap-2 {
+        gap: 0.5rem !important;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    #jitsi-container {
+        height: 400px !important;
+    }
+}
+
+/* Custom scrollbar for dropdown */
+.dropdown-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>
 {% endblock %}
 

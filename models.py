@@ -194,6 +194,7 @@ class VideoCall(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     host_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    chat_room = db.Column(db.String(100))  # Link to chat room
     is_active = db.Column(db.Boolean, default=True)
     max_participants = db.Column(db.Integer, default=10)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

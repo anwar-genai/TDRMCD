@@ -18,6 +18,9 @@
                         <div id="connection-status" class="badge bg-light text-dark">
                             <i class="fas fa-circle me-1 text-warning"></i>Connecting...
                         </div>
+                        <button class="btn btn-light btn-sm" onclick="startVideoCall()" title="Start Video Call">
+                            <i class="fas fa-video"></i>
+                        </button>
                         <button class="btn btn-light btn-sm" onclick="testConnection()" title="Test Connection">
                             <i class="fas fa-wifi"></i>
                         </button>
@@ -97,6 +100,7 @@ document.addEventListener('DOMContentLoaded', function() {
     showLoadingOverlay();
     initializeSocket();
     setupEventListeners();
+    checkForExistingVideoCall();
 });
 
 function showLoadingOverlay() {
@@ -208,6 +212,20 @@ function initializeSocket() {
         console.log('👋 User left:', data);
         addSystemMessage(`${data.username} left the room`, 'info');
     });
+    
+    window.socket.on('video_call_available', function(data) {
+        console.log('🎥 Video call available:', data);
+        showVideoCallJoinButton(data.video_room_url, data.message);
+    });
+    
+    window.socket.on('video_call_ended', function(data) {
+        console.log('🎥 Video call ended:', data);
+        addSystemMessage(data.message, 'info');
+        
+        // Remove video call join buttons
+        const existingButtons = document.querySelectorAll('.video-call-join-button');
+        existingButtons.forEach(btn => btn.remove());
+    });
 }
 
 function setupEventListeners() {
@@ -257,7 +275,9 @@ function sendMessage() {
     document.getElementById('send-btn').disabled = true;
     
     // Send message
-    socket.emit('send_message', { room: roomId, message: message });
+    if (window.socket) {
+        window.socket.emit('send_message', { room: roomId, message: message });
+    }
     
     // Clear input
     input.value = '';
@@ -337,16 +357,16 @@ function updateConnectionStatus(connected) {
 
 function testConnection() {
     console.log('🧪 Testing connection...');
-    console.log('Socket:', socket);
+    console.log('Socket:', window.socket);
     console.log('Connected:', isConnected);
     
-    if (socket && isConnected) {
-        socket.emit('send_message', { room: roomId, message: 'Test message from connection test' });
+    if (window.socket && isConnected) {
+        window.socket.emit('send_message', { room: roomId, message: 'Test message from connection test' });
         showAlert('Test message sent!', 'success');
     } else {
         showAlert('Not connected to server', 'danger');
-        if (socket) {
-            socket.connect();
+        if (window.socket) {
+            window.socket.connect();
         }
     }
 }
@@ -356,8 +376,8 @@ function handleReconnection() {
         reconnectAttempts++;
         console.log(`🔄 Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`);
         setTimeout(() => {
-            if (socket) {
-                socket.connect();
+            if (window.socket) {
+                window.socket.connect();
             }
         }, 2000 * reconnectAttempts);
     } else {
@@ -387,6 +407,150 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function startVideoCall() {
+    console.log('🎥 Starting video call for room:', roomId);
+    
+    // Show loading state
+    const videoBtn = document.querySelector('button[onclick="startVideoCall()"]');
+    const originalContent = videoBtn.innerHTML;
+    videoBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    videoBtn.disabled = true;
+    
+    // Check if there's already an active video call for this chat room
+    fetch(`/community/video_call/check/${roomId}`)
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.exists) {
+            // Join existing call
+            console.log('🎥 Joining existing video call:', data.room_url);
+            const newWindow = window.open(data.room_url, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+            
+            if (!newWindow) {
+                showAlert('Please allow popups for this site to join the video call', 'warning');
+                return;
+            }
+            
+            // Notify chat room about the video call
+            if (window.socket) {
+                window.socket.emit('video_call_started', {
+                    room: roomId,
+                    video_room_id: data.room_id,
+                    video_room_url: data.room_url,
+                    started_by: '{{ current_user.username }}'
+                });
+            }
+            
+            showAlert('Joining existing video call...', 'success');
+        } else {
+            // Create new video call
+            createVideoCall();
+        }
+    })
+    .catch(error => {
+        console.error('Error checking video call:', error);
+        showAlert('Error checking for video call. Creating new one...', 'warning');
+        createVideoCall();
+    })
+    .finally(() => {
+        // Restore button state
+        videoBtn.innerHTML = originalContent;
+        videoBtn.disabled = false;
+    });
+}
+
+function createVideoCall() {
+    console.log('🎥 Creating new video call for room:', roomId);
+    
+    fetch('/community/video_call/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            title: `Video Call - ${roomId}`,
+            description: `Video call for chat room ${roomId}`,
+            max_participants: 10,
+            chat_room: roomId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('🎥 Video call created successfully:', data.room_url);
+            
+            // Open video call in new window with specific dimensions
+            const newWindow = window.open(data.room_url, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+            
+            if (!newWindow) {
+                showAlert('Please allow popups for this site to start the video call', 'warning');
+                return;
+            }
+            
+            // Notify chat room about the video call
+            if (window.socket) {
+                window.socket.emit('video_call_started', {
+                    room: roomId,
+                    video_room_id: data.room_id,
+                    video_room_url: data.room_url,
+                    started_by: '{{ current_user.username }}'
+                });
+            }
+            
+            showAlert('Video call created successfully!', 'success');
+        } else {
+            showAlert('Failed to create video call room: ' + (data.message || 'Unknown error'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating video call:', error);
+        showAlert('Error creating video call: ' + error.message, 'danger');
+    });
+}
+
+function checkForExistingVideoCall() {
+    // Check if there's already an active video call for this chat room
+    fetch(`/community/video_call/check/${roomId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.exists) {
+            console.log('🎥 Found existing video call:', data);
+            showVideoCallJoinButton(data.room_url, 'Existing video call available');
+        }
+    })
+    .catch(error => {
+        console.error('Error checking for existing video call:', error);
+    });
+}
+
+function showVideoCallJoinButton(roomUrl, message) {
+    // Remove any existing video call buttons
+    const existingButtons = document.querySelectorAll('.video-call-join-button');
+    existingButtons.forEach(btn => btn.remove());
+    
+    // Add system message
+    addSystemMessage(message, 'success');
+    
+    // Show join button for video call
+    const joinButton = document.createElement('div');
+    joinButton.className = 'text-center my-2 video-call-join-button';
+    joinButton.innerHTML = `
+        <a href="${roomUrl}" target="_blank" class="btn btn-success btn-sm">
+            <i class="fas fa-video me-1"></i>Join Video Call
+        </a>
+    `;
+    document.getElementById('chat-messages').appendChild(joinButton);
 }
 </script>
 

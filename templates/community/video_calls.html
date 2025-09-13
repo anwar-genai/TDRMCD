@@ -25,6 +25,9 @@
                         <p class="text-muted mb-2">{{ call.description }}</p>
                         {% endif %}
                         <div class="small text-muted mb-2">Host: {{ call.host.get_full_name() }}</div>
+                        {% if call.chat_room %}
+                        <div class="small text-muted mb-2">Chat Room: #{{ call.chat_room }}</div>
+                        {% endif %}
                         <div class="small text-muted">Created: {{ call.created_at.strftime('%b %d, %Y %H:%M') }}</div>
                     </div>
                     <div class="card-footer bg-transparent d-flex justify-content-between">

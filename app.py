@@ -213,6 +213,21 @@ def on_webrtc_ice_candidate(data):
     else:
         emit('call_event', payload, room=room_id, include_self=False)
 
+@socketio.on('video_call_started')
+def on_video_call_started(data):
+    room = data.get('room')
+    video_room_id = data.get('video_room_id')
+    video_room_url = data.get('video_room_url')
+    started_by = data.get('started_by')
+    
+    # Notify all users in the chat room about the video call
+    emit('video_call_available', {
+        'video_room_id': video_room_id,
+        'video_room_url': video_room_url,
+        'started_by': started_by,
+        'message': f'{started_by} started a video call'
+    }, room=room)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

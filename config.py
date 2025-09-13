@@ -28,3 +28,8 @@ class Config:
     # Security
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
+    
+    # Jitsi Video Call Configuration
+    JITSI_APP_ID = os.environ.get('JITSI_APP_ID')
+    JITSI_APP_SECRET = os.environ.get('JITSI_APP_SECRET')
+    JITSI_KEY_ID = os.environ.get('JITSI_KEY_ID')  # Key ID from JaaS console
