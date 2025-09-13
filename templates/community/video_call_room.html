@@ -251,15 +251,21 @@ function initJitsi() {
     showPrejoinCancel();
 }
 
-// Virtual backgrounds are handled by Jitsi's built-in UI
+// Use Jitsi's built-in virtual background feature
 function toggleVirtualBackground() {
     try {
         if (api) {
-            // Open settings panel to virtual background section
-            api.executeCommand('toggleVirtualBackgroundDialog');
+            // Use Jitsi's built-in settings panel for virtual backgrounds
+            api.executeCommand('toggleSettings');
         }
     } catch (e) {
-        console.warn('Unable to toggle virtual background dialog:', e);
+        console.warn('Unable to toggle settings panel:', e);
+        // Fallback: try to open virtual background dialog directly
+        try {
+            api.executeCommand('toggleVirtualBackgroundDialog');
+        } catch (e2) {
+            console.warn('Virtual background dialog not available:', e2);
+        }
     }
 }
 

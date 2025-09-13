@@ -13,8 +13,8 @@ A comprehensive Flask web application for managing and sharing information about
 - **User Management**: Role-based access control (Users, Researchers, Admins)
 
 ### 💬 Community Features
-- **Real-time Chat**: Multiple chat rooms for different topics
-- **Video Calling**: Google Meet-style video conferencing
+- **Real-time Chat**: Multiple chat rooms with Socket.IO for instant messaging
+- **Video Calling**: JaaS-powered video conferencing with authentication
 - **Discussion Forums**: Community posts with comments and reactions
 - **File Sharing**: Upload and share documents, images, and research papers
 - **Notifications**: Real-time updates and alerts
@@ -77,6 +77,89 @@ A comprehensive Flask web application for managing and sharing information about
      - Username: `admin`
      - Password: `admin123`
    - **⚠️ Change the admin password immediately after first login!**
+
+## 🎥 Video Call Setup (JaaS Integration)
+
+The application supports professional video calling through JaaS (Jitsi as a Service). This provides authenticated, secure video conferences with moderation controls.
+
+### 🔧 JaaS Configuration
+
+1. **Sign up for JaaS**
+   - Visit [JaaS Console](https://jaas.8x8.vc/)
+   - Create a free account
+   - Create a new application
+
+2. **Generate API Key**
+   ```bash
+   # Generate RSA key pair
+   ssh-keygen -t rsa -b 4096 -m PEM -f jaasauth.key
+   
+   # Generate public key in PEM format
+   openssl rsa -in jaasauth.key -pubout -outform PEM -out jaasauth.key.pub
+   ```
+
+3. **Upload Public Key**
+   - Go to JaaS Console → API Keys
+   - Upload the **public key** (`jaasauth.key.pub`)
+   - Copy the generated **Key ID** (e.g., `vpaas-magic-cookie-abc123/def456`)
+
+4. **Configure Environment Variables**
+   
+   Create a `.env` file in the project root with:
+   ```env
+   # Flask Configuration
+   SECRET_KEY=your-secret-key-here
+   DATABASE_URL=sqlite:///tdrmcd.db
+   
+   # JaaS Configuration
+   JITSI_APP_ID=your-app-id-here
+   JITSI_KEY_ID=vpaas-magic-cookie-your-app-id/key-id
+   JITSI_APP_SECRET=-----BEGIN PRIVATE KEY-----
+   your-private-key-content-here
+   -----END PRIVATE KEY-----
+   
+   # Mail Configuration (Optional)
+   MAIL_SERVER=smtp.gmail.com
+   MAIL_PORT=587
+   MAIL_USE_TLS=true
+   MAIL_USERNAME=your-email@example.com
+   MAIL_PASSWORD=your-app-password
+   ```
+
+5. **Install Additional Dependencies**
+   ```bash
+   pip install cryptography python-dotenv
+   ```
+
+6. **Restart Application**
+   ```bash
+   python run.py
+   ```
+
+### ✅ Video Call Features
+
+With JaaS configured, you get:
+- **Authenticated Meetings**: Secure JWT-based authentication
+- **Host Moderation**: Meeting hosts have full control
+- **High-Quality Video**: Professional-grade video conferencing
+- **Virtual Backgrounds**: Built-in background replacement
+- **Screen Sharing**: Share your screen with participants
+- **Chat Integration**: Video calls linked to chat rooms
+- **Recording Support**: Meeting recording capabilities (if enabled)
+
+### 🔍 Troubleshooting Video Calls
+
+- **"Not allowed to join"**: Check that all three JaaS variables are correctly set
+- **Video not loading**: Ensure cryptography library is installed
+- **No moderation controls**: Verify the Key ID format includes the full `vpaas-magic-cookie-` prefix
+- **Connection issues**: Check browser console for JWT token errors
+
+### 📱 Using Video Calls
+
+1. **From Chat Rooms**: Click the video button in any chat room
+2. **Direct Access**: Visit `/community/video_call` to see all active calls
+3. **Create Meetings**: Start new video calls from the community section
+4. **Join Existing**: Click "Join Video Call" when others start meetings
 
 ## 📁 Project Structure
 

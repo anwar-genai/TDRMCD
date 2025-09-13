@@ -477,8 +477,18 @@ def end_video_call(room_id):
     if video_call.chat_room:
         socketio.emit('video_call_ended', {
             'message': f'Video call "{video_call.title}" has ended',
-            'video_room_id': room_id
+            'video_room_id': room_id,
+            'chat_room': video_call.chat_room
         }, room=video_call.chat_room)
+        
+        # Also emit to all connected users to ensure they get the update
+        socketio.emit('video_call_ended', {
+            'message': f'Video call "{video_call.title}" has ended',
+            'video_room_id': room_id,
+            'chat_room': video_call.chat_room
+        })
+        
+        current_app.logger.info(f"Video call ended notification sent for room: {video_call.chat_room}")
     
     return jsonify({'success': True, 'message': 'Video call ended'})
 
