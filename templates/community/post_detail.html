@@ -16,7 +16,7 @@
                         <span class="badge bg-secondary">{{ post.category.title() }}</span>
                     </div>
                     {% if post.image_url %}
-                    <img class="img-fluid rounded my-3" src="{{ url_for('static', filename='uploads/' + post.image_url) }}" alt="{{ post.title }}">
+                    <img class="img-fluid rounded my-3" src="{{ url_for('serve_uploaded_file', subdir='posts', filename=post.image_url.split('/')[-1]) }}" alt="{{ post.title }}">
                     {% endif %}
                     <p class="mt-2">{{ post.content }}</p>
                     {% if post.tags %}

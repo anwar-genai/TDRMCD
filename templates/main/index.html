@@ -89,7 +89,7 @@
             <div class="col-lg-4 col-md-6 mb-4">
                 <div class="card resource-card h-100 shadow-sm">
                     {% if resource.image_url %}
-                    <img src="{{ url_for('static', filename='uploads/' + resource.image_url) }}" 
+                    <img src="{{ url_for('serve_uploaded_file', subdir='resources', filename=resource.image_url.split('/')[-1]) }}" 
                          class="card-img-top" alt="{{ resource.title }}" style="height: 200px; object-fit: cover;">
                     {% else %}
                     <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">

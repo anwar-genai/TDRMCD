@@ -113,7 +113,7 @@
                         <div class="d-flex align-items-center border-bottom pb-2 mb-2">
                             <div class="flex-shrink-0 me-3">
                                 {% if resource.image_url %}
-                                <img src="{{ url_for('static', filename='uploads/' + resource.image_url) }}" 
+                                <img src="{{ url_for('serve_uploaded_file', subdir='resources', filename=resource.image_url.split('/')[-1]) }}" 
                                      alt="{{ resource.title }}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">
                                 {% else %}
                                 <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
