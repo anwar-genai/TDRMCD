@@ -1,8 +1,29 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, TextAreaField, PasswordField, BooleanField, SelectField, FloatField, DateTimeField, HiddenField
-from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, NumberRange
+from wtforms.validators import DataRequired, Length, Email, EqualTo, Optional, NumberRange, ValidationError
 from wtforms.widgets import TextArea
+
+def validate_kpk_coordinates(form, field):
+    """Validate that coordinates are within Khyber Pakhtunkhwa region"""
+    if field.data is None:
+        return  # Optional field, no validation needed if empty
+    
+    lat = form.latitude.data
+    lng = form.longitude.data
+    
+    # Both lat and lng must be provided together
+    if (lat is None) != (lng is None):
+        raise ValidationError('Both latitude and longitude must be provided together.')
+    
+    if lat is not None and lng is not None:
+        # KPK approximate boundaries
+        # North: 36.75, South: 31.17, East: 74.35, West: 70.10
+        if not (31.17 <= lat <= 36.75):
+            raise ValidationError('Latitude must be within Khyber Pakhtunkhwa region (31.17° to 36.75°).')
+        
+        if not (70.10 <= lng <= 74.35):
+            raise ValidationError('Longitude must be within Khyber Pakhtunkhwa region (70.10° to 74.35°).')
 
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])
@@ -37,8 +58,8 @@ class ResourceForm(FlaskForm):
     ])
     subcategory = StringField('Subcategory', validators=[Optional(), Length(max=50)])
     location = StringField('Location', validators=[Optional(), Length(max=200)])
-    latitude = FloatField('Latitude', validators=[Optional(), NumberRange(min=-90, max=90)])
-    longitude = FloatField('Longitude', validators=[Optional(), NumberRange(min=-180, max=180)])
+    latitude = FloatField('Latitude', validators=[Optional(), NumberRange(min=-90, max=90), validate_kpk_coordinates])
+    longitude = FloatField('Longitude', validators=[Optional(), NumberRange(min=-180, max=180), validate_kpk_coordinates])
     economic_value = StringField('Economic Value', validators=[Optional(), Length(max=100)])
     sustainability_info = TextAreaField('Sustainability Information', validators=[Optional(), Length(max=1000)])
     image = FileField('Image', validators=[

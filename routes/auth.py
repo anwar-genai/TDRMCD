@@ -93,3 +93,11 @@ def edit_profile():
         return redirect(url_for('auth.profile'))
     
     return render_template('auth/edit_profile.html', form=form)
+
+@auth_bp.route('/terms-of-service')
+def terms_of_service():
+    return render_template('auth/terms_of_service.html')
+
+@auth_bp.route('/privacy-policy')
+def privacy_policy():
+    return render_template('auth/privacy_policy.html')

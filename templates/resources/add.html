@@ -86,7 +86,12 @@
                             
                             <div class="col-md-12 mb-3">
                                 {{ form.location.label(class="form-label fw-bold") }}
-                                {{ form.location(class="form-control", placeholder="e.g., Waziristan, North Waziristan District") }}
+                                <div class="input-group">
+                                    {{ form.location(class="form-control", placeholder="e.g., Waziristan, North Waziristan District", id="location-input") }}
+                                    <button type="button" class="btn btn-outline-secondary" onclick="searchLocationFromInput()">
+                                        <i class="fas fa-search-location"></i>
+                                    </button>
+                                </div>
                                 {% if form.location.errors %}
                                     <div class="text-danger small mt-1">
                                         {% for error in form.location.errors %}
@@ -94,6 +99,10 @@
                                         {% endfor %}
                                     </div>
                                 {% endif %}
+                                <div class="small text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Type a location name and click search to auto-fill coordinates, or use the map picker below
+                                </div>
                             </div>
                             
                             <div class="col-md-6 mb-3">
@@ -211,21 +220,73 @@
 
 <!-- Map Picker Modal -->
 <div class="modal fade" id="mapPickerModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Select Location on Map</h5>
+                <h5 class="modal-title">
+                    <i class="fas fa-map-marker-alt me-2"></i>Select Resource Location
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="mapPicker" style="height: 400px;"></div>
+                <!-- Search and Controls Row -->
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="mapSearchInput" placeholder="Search for a location in KPK, Pakistan...">
+                            <button class="btn btn-outline-primary" type="button" onclick="searchLocationOnMap()">
+                                <i class="fas fa-search me-1"></i>Search
+                            </button>
+                        </div>
+                        <div class="small text-muted mt-1">
+                            Search for cities, districts, or landmarks in Khyber Pakhtunkhwa
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-success btn-sm" onclick="getCurrentLocationForMap()">
+                                <i class="fas fa-crosshairs me-1"></i>My Location
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="centerMapOnKPK()">
+                                <i class="fas fa-home me-1"></i>Center on KPK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Map Container -->
+                <div id="mapPicker" style="height: 500px; border-radius: 8px; border: 1px solid #dee2e6;"></div>
+                
+                <!-- Selected Location Info -->
+                <div class="mt-3" id="selectedLocationInfo" style="display: none;">
+                    <div class="alert alert-info">
+                        <h6 class="mb-1">
+                            <i class="fas fa-map-pin me-2"></i>Selected Location
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Latitude:</strong> <span id="selectedLat"></span><br>
+                                <strong>Longitude:</strong> <span id="selectedLng"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Location:</strong> <span id="selectedLocationName"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="mt-2 text-muted small">
-                    Click on the map to select coordinates
+                    <i class="fas fa-info-circle me-1"></i>
+                    Click anywhere on the map to select coordinates, or search for a specific location
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="confirmLocation()">Use Selected Location</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="confirmLocation()">
+                    <i class="fas fa-check me-1"></i>Use Selected Location
+                </button>
             </div>
         </div>
     </div>
@@ -237,14 +298,16 @@
 let mapPicker = null;
 let selectedMarker = null;
 let selectedCoords = null;
+let selectedLocationName = null;
 
-// Get current location
+// Get current location (for form fields)
 function getCurrentLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             function(position) {
                 document.getElementById('latitude').value = position.coords.latitude.toFixed(6);
                 document.getElementById('longitude').value = position.coords.longitude.toFixed(6);
+                reverseGeocodeAndFillLocation(position.coords.latitude, position.coords.longitude);
                 TDRMCD.showToast('Location coordinates updated!', 'success');
             },
             function(error) {
@@ -257,6 +320,169 @@ function getCurrentLocation() {
     }
 }
 
+// Get current location for map picker
+function getCurrentLocationForMap() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const coords = [position.coords.latitude, position.coords.longitude];
+                mapPicker.setView(coords, 15);
+                
+                if (selectedMarker) {
+                    mapPicker.removeLayer(selectedMarker);
+                }
+                
+                selectedMarker = L.marker(coords).addTo(mapPicker);
+                selectedCoords = { lat: coords[0], lng: coords[1] };
+                
+                // Reverse geocode to get location name
+                reverseGeocode(coords[0], coords[1], function(locationName) {
+                    selectedLocationName = locationName;
+                    updateSelectedLocationInfo();
+                });
+                
+                TDRMCD.showToast('Current location found!', 'success');
+            },
+            function(error) {
+                console.error('Geolocation error:', error);
+                TDRMCD.showToast('Unable to get current location.', 'warning');
+            }
+        );
+    } else {
+        TDRMCD.showToast('Geolocation is not supported by this browser.', 'error');
+    }
+}
+
+// Search location from input field
+function searchLocationFromInput() {
+    const locationInput = document.getElementById('location-input').value.trim();
+    if (!locationInput) {
+        TDRMCD.showToast('Please enter a location to search.', 'warning');
+        return;
+    }
+    
+    // Use Nominatim API for geocoding
+    const searchQuery = `${locationInput}, Khyber Pakhtunkhwa, Pakistan`;
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                const result = data[0];
+                const lat = parseFloat(result.lat);
+                const lng = parseFloat(result.lon);
+                
+                document.getElementById('latitude').value = lat.toFixed(6);
+                document.getElementById('longitude').value = lng.toFixed(6);
+                document.getElementById('location-input').value = result.display_name.split(',')[0]; // Use first part of display name
+                
+                TDRMCD.showToast('Location found and coordinates filled!', 'success');
+            } else {
+                TDRMCD.showToast('Location not found. Please try a different search term.', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Geocoding error:', error);
+            TDRMCD.showToast('Error searching for location. Please try again.', 'error');
+        });
+}
+
+// Search location on map
+function searchLocationOnMap() {
+    const searchInput = document.getElementById('mapSearchInput').value.trim();
+    if (!searchInput) {
+        TDRMCD.showToast('Please enter a location to search.', 'warning');
+        return;
+    }
+    
+    const searchQuery = `${searchInput}, Khyber Pakhtunkhwa, Pakistan`;
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                const result = data[0];
+                const lat = parseFloat(result.lat);
+                const lng = parseFloat(result.lon);
+                const coords = [lat, lng];
+                
+                mapPicker.setView(coords, 15);
+                
+                if (selectedMarker) {
+                    mapPicker.removeLayer(selectedMarker);
+                }
+                
+                selectedMarker = L.marker(coords).addTo(mapPicker);
+                selectedCoords = { lat: lat, lng: lng };
+                selectedLocationName = result.display_name;
+                
+                updateSelectedLocationInfo();
+                TDRMCD.showToast('Location found!', 'success');
+            } else {
+                TDRMCD.showToast('Location not found. Please try a different search term.', 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Geocoding error:', error);
+            TDRMCD.showToast('Error searching for location. Please try again.', 'error');
+        });
+}
+
+// Center map on KPK
+function centerMapOnKPK() {
+    mapPicker.setView([34.0151, 71.5249], 8);
+    TDRMCD.showToast('Map centered on Khyber Pakhtunkhwa', 'info');
+}
+
+// Validate KPK coordinates
+function validateKPKCoordinates(lat, lng) {
+    // KPK approximate boundaries
+    // North: 36.75, South: 31.17, East: 74.35, West: 70.10
+    const isWithinKPK = (31.17 <= lat && lat <= 36.75) && (70.10 <= lng && lng <= 74.35);
+    return {
+        isValid: isWithinKPK,
+        message: isWithinKPK ? 'Coordinates are within KPK region' : 'Coordinates are outside Khyber Pakhtunkhwa region'
+    };
+}
+
+// Reverse geocoding function
+function reverseGeocode(lat, lng, callback) {
+    // First validate coordinates
+    const validation = validateKPKCoordinates(lat, lng);
+    if (!validation.isValid) {
+        TDRMCD.showToast(validation.message, 'warning');
+    }
+    
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.display_name) {
+                callback(data.display_name);
+            } else {
+                callback(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+            }
+        })
+        .catch(error => {
+            console.error('Reverse geocoding error:', error);
+            callback(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        });
+}
+
+// Reverse geocode and fill location field
+function reverseGeocodeAndFillLocation(lat, lng) {
+    reverseGeocode(lat, lng, function(locationName) {
+        document.getElementById('location-input').value = locationName.split(',')[0]; // Use first part
+    });
+}
+
+// Update selected location info display
+function updateSelectedLocationInfo() {
+    if (selectedCoords) {
+        document.getElementById('selectedLat').textContent = selectedCoords.lat.toFixed(6);
+        document.getElementById('selectedLng').textContent = selectedCoords.lng.toFixed(6);
+        document.getElementById('selectedLocationName').textContent = selectedLocationName || 'Unknown location';
+        document.getElementById('selectedLocationInfo').style.display = 'block';
+    }
+}
+
 // Show map picker
 function showMapPicker() {
     const modal = new bootstrap.Modal(document.getElementById('mapPickerModal'));
@@ -266,7 +492,9 @@ function showMapPicker() {
     document.getElementById('mapPickerModal').addEventListener('shown.bs.modal', function() {
         if (!mapPicker) {
             mapPicker = L.map('mapPicker').setView([34.0151, 71.5249], 8);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapPicker);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(mapPicker);
             
             // Add click event
             mapPicker.on('click', function(e) {
@@ -276,6 +504,12 @@ function showMapPicker() {
                 
                 selectedMarker = L.marker(e.latlng).addTo(mapPicker);
                 selectedCoords = e.latlng;
+                
+                // Reverse geocode to get location name
+                reverseGeocode(e.latlng.lat, e.latlng.lng, function(locationName) {
+                    selectedLocationName = locationName;
+                    updateSelectedLocationInfo();
+                });
             });
         }
         
@@ -283,6 +517,11 @@ function showMapPicker() {
         setTimeout(() => {
             mapPicker.invalidateSize();
         }, 100);
+        
+        // Reset selected location info
+        document.getElementById('selectedLocationInfo').style.display = 'none';
+        selectedCoords = null;
+        selectedLocationName = null;
     });
 }
 
@@ -292,8 +531,13 @@ function confirmLocation() {
         document.getElementById('latitude').value = selectedCoords.lat.toFixed(6);
         document.getElementById('longitude').value = selectedCoords.lng.toFixed(6);
         
+        // Update location field if we have a location name
+        if (selectedLocationName) {
+            document.getElementById('location-input').value = selectedLocationName.split(',')[0];
+        }
+        
         bootstrap.Modal.getInstance(document.getElementById('mapPickerModal')).hide();
-        TDRMCD.showToast('Coordinates updated from map!', 'success');
+        TDRMCD.showToast('Location coordinates updated from map!', 'success');
     } else {
         TDRMCD.showToast('Please select a location on the map first.', 'warning');
     }
@@ -308,9 +552,60 @@ document.addEventListener('DOMContentLoaded', function() {
     if (lat && lng) {
         document.getElementById('latitude').value = parseFloat(lat).toFixed(6);
         document.getElementById('longitude').value = parseFloat(lng).toFixed(6);
+        
+        // Reverse geocode to fill location field
+        reverseGeocodeAndFillLocation(parseFloat(lat), parseFloat(lng));
+        
         TDRMCD.showToast('Coordinates pre-filled from map selection!', 'info');
     }
+    
+    // Add enter key support for location search
+    document.getElementById('location-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchLocationFromInput();
+        }
+    });
+    
+    document.getElementById('mapSearchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchLocationOnMap();
+        }
+    });
+    
+    // Add real-time coordinate validation
+    document.getElementById('latitude').addEventListener('input', validateCoordinateInputs);
+    document.getElementById('longitude').addEventListener('input', validateCoordinateInputs);
 });
+
+// Validate coordinate inputs in real-time
+function validateCoordinateInputs() {
+    const latInput = document.getElementById('latitude');
+    const lngInput = document.getElementById('longitude');
+    
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    
+    // Only validate if both fields have values
+    if (!isNaN(lat) && !isNaN(lng)) {
+        const validation = validateKPKCoordinates(lat, lng);
+        
+        // Remove existing validation classes
+        latInput.classList.remove('is-valid', 'is-invalid');
+        lngInput.classList.remove('is-valid', 'is-invalid');
+        
+        if (validation.isValid) {
+            latInput.classList.add('is-valid');
+            lngInput.classList.add('is-valid');
+        } else {
+            latInput.classList.add('is-invalid');
+            lngInput.classList.add('is-invalid');
+        }
+    } else {
+        // Remove validation classes if fields are empty
+        latInput.classList.remove('is-valid', 'is-invalid');
+        lngInput.classList.remove('is-valid', 'is-invalid');
+    }
+}
 
 // Image preview
 document.querySelector('input[type="file"]').addEventListener('change', function(e) {

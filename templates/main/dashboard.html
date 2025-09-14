@@ -11,15 +11,34 @@
                 <div class="card-body">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h2 class="fw-bold mb-2">Welcome back, {{ current_user.get_full_name() }}!</h2>
-                            <p class="mb-0 opacity-75">
-                                {% if current_user.location %}
-                                    <i class="fas fa-map-marker-alt me-2"></i>{{ current_user.location }}
-                                {% endif %}
-                                <span class="ms-3">
-                                    <i class="fas fa-clock me-2"></i>Last seen: {{ current_user.last_seen.strftime('%B %d, %Y at %I:%M %p') }}
-                                </span>
-                            </p>
+                            {% if is_new_user %}
+                                <h2 class="fw-bold mb-2">Welcome to TDRMCD, {{ current_user.get_full_name() }}! 🎉</h2>
+                                <p class="mb-0 opacity-75">
+                                    <i class="fas fa-star me-2"></i>Thanks for joining our community! Let's get started.
+                                    {% if current_user.location %}
+                                        <br><i class="fas fa-map-marker-alt me-2"></i>{{ current_user.location }}
+                                    {% endif %}
+                                </p>
+                            {% elif is_long_absence %}
+                                <h2 class="fw-bold mb-2">Welcome back, {{ current_user.get_full_name() }}! 👋</h2>
+                                <p class="mb-0 opacity-75">
+                                    <i class="fas fa-heart me-2"></i>We've missed you! Great to see you again.
+                                    {% if current_user.location %}
+                                        <br><i class="fas fa-map-marker-alt me-2"></i>{{ current_user.location }}
+                                    {% endif %}
+                                    <br><i class="fas fa-clock me-2"></i>Last seen: {{ current_user.last_seen.strftime('%B %d, %Y at %I:%M %p') }}
+                                </p>
+                            {% else %}
+                                <h2 class="fw-bold mb-2">Welcome back, {{ current_user.get_full_name() }}!</h2>
+                                <p class="mb-0 opacity-75">
+                                    {% if current_user.location %}
+                                        <i class="fas fa-map-marker-alt me-2"></i>{{ current_user.location }}
+                                    {% endif %}
+                                    <span class="ms-3">
+                                        <i class="fas fa-clock me-2"></i>Last seen: {{ current_user.last_seen.strftime('%B %d, %Y at %I:%M %p') }}
+                                    </span>
+                                </p>
+                            {% endif %}
                         </div>
                         <div class="col-md-4 text-md-end">
                             <div class="d-flex gap-2 justify-content-md-end">

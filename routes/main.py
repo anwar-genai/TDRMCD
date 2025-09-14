@@ -24,6 +24,11 @@ def index():
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
+    # Update last_seen timestamp
+    from datetime import datetime
+    current_user.last_seen = datetime.utcnow()
+    db.session.commit()
+    
     # Get user's recent activities
     user_resources = current_user.resources.limit(5).all()
     user_posts = current_user.posts.limit(5).all()
@@ -39,11 +44,20 @@ def dashboard():
         'unread_notifications': current_user.notifications.filter_by(is_read=False).count()
     }
     
+    # Check if this is a new user (created within last 24 hours)
+    from datetime import timedelta
+    is_new_user = current_user.created_at > datetime.utcnow() - timedelta(hours=24)
+    
+    # Check if user hasn't been seen in a while (more than 7 days)
+    is_long_absence = current_user.last_seen < datetime.utcnow() - timedelta(days=7)
+    
     return render_template('main/dashboard.html',
                          user_resources=user_resources,
                          user_posts=user_posts,
                          notifications=notifications,
-                         stats=stats)
+                         stats=stats,
+                         is_new_user=is_new_user,
+                         is_long_absence=is_long_absence)
 
 @main_bp.route('/search')
 def search():

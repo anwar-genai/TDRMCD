@@ -130,8 +130,8 @@
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="terms" required>
                             <label class="form-check-label" for="terms">
-                                I agree to the <a href="#" class="text-decoration-none">Terms of Service</a> 
-                                and <a href="#" class="text-decoration-none">Privacy Policy</a>
+                                I agree to the <a href="{{ url_for('auth.terms_of_service') }}" target="_blank" class="text-decoration-none">Terms of Service</a> 
+                                and <a href="{{ url_for('auth.privacy_policy') }}" target="_blank" class="text-decoration-none">Privacy Policy</a>
                             </label>
                         </div>
                         
@@ -223,17 +223,46 @@ document.getElementById('password').addEventListener('input', function() {
 document.querySelector('form').addEventListener('submit', function(e) {
     const password = document.getElementById('password').value;
     const password2 = document.getElementById('password2').value;
+    const termsCheckbox = document.getElementById('terms');
     
     if (password !== password2) {
         e.preventDefault();
         alert('Passwords do not match!');
+        document.getElementById('password2').focus();
         return false;
     }
     
-    if (!document.getElementById('terms').checked) {
+    if (!termsCheckbox.checked) {
         e.preventDefault();
-        alert('Please accept the Terms of Service and Privacy Policy');
+        alert('Please accept the Terms of Service and Privacy Policy to continue.');
+        termsCheckbox.focus();
         return false;
+    }
+});
+
+// Real-time terms validation
+document.getElementById('terms').addEventListener('change', function() {
+    const submitBtn = document.querySelector('button[type="submit"]');
+    if (this.checked) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('btn-secondary');
+        submitBtn.classList.add('btn-primary');
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-secondary');
+    }
+});
+
+// Initialize button state
+document.addEventListener('DOMContentLoaded', function() {
+    const termsCheckbox = document.getElementById('terms');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    
+    if (!termsCheckbox.checked) {
+        submitBtn.disabled = true;
+        submitBtn.classList.remove('btn-primary');
+        submitBtn.classList.add('btn-secondary');
     }
 });
 </script>
