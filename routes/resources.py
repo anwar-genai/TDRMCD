@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_from_directory
 from flask_login import login_required, current_user
 from models import db, Resource
 from forms import ResourceForm
@@ -87,6 +87,25 @@ def add():
                 form.image.data.save(image_path)
                 resource.image_url = f"resources/{unique_filename}"
         
+        # Handle file attachment upload
+        if form.attachment.data:
+            filename = secure_filename(form.attachment.data.filename)
+            if filename:
+                import uuid
+                file_ext = filename.rsplit('.', 1)[1].lower()
+                unique_filename = f"{uuid.uuid4()}.{file_ext}"
+                
+                attachment_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'resources', 'attachments', unique_filename)
+                os.makedirs(os.path.dirname(attachment_path), exist_ok=True)
+                form.attachment.data.save(attachment_path)
+                
+                # Store attachment information
+                resource.attachment_filename = f"attachments/{unique_filename}"
+                resource.attachment_original_name = filename
+                resource.attachment_file_type = file_ext
+                resource.attachment_file_size = os.path.getsize(attachment_path)
+                resource.attachment_reference = form.attachment_reference.data
+        
         db.session.add(resource)
         db.session.commit()
         
@@ -131,11 +150,58 @@ def edit(id):
                 form.image.data.save(image_path)
                 resource.image_url = f"resources/{unique_filename}"
         
+        # Handle file attachment upload
+        if form.attachment.data:
+            filename = secure_filename(form.attachment.data.filename)
+            if filename:
+                import uuid
+                file_ext = filename.rsplit('.', 1)[1].lower()
+                unique_filename = f"{uuid.uuid4()}.{file_ext}"
+                
+                attachment_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'resources', 'attachments', unique_filename)
+                os.makedirs(os.path.dirname(attachment_path), exist_ok=True)
+                form.attachment.data.save(attachment_path)
+                
+                # Store attachment information
+                resource.attachment_filename = f"attachments/{unique_filename}"
+                resource.attachment_original_name = filename
+                resource.attachment_file_type = file_ext
+                resource.attachment_file_size = os.path.getsize(attachment_path)
+                resource.attachment_reference = form.attachment_reference.data
+        
         db.session.commit()
         flash('Resource updated successfully!', 'success')
         return redirect(url_for('resources.detail', id=resource.id))
     
     return render_template('resources/edit.html', form=form, resource=resource)
+
+@resources_bp.route('/<int:id>/download_attachment')
+@login_required
+def download_attachment(id):
+    resource = Resource.query.get_or_404(id)
+    
+    if not resource.attachment_filename:
+        flash('No attachment found for this resource.', 'error')
+        return redirect(url_for('resources.detail', id=id))
+    
+    # Get the file path
+    uploads_root = os.path.join(current_app.config['UPLOAD_FOLDER'], 'resources')
+    file_path = os.path.join(uploads_root, resource.attachment_filename)
+    
+    if not os.path.exists(file_path):
+        flash('Attachment file not found.', 'error')
+        return redirect(url_for('resources.detail', id=id))
+    
+    try:
+        return send_from_directory(
+            os.path.dirname(file_path),
+            os.path.basename(file_path),
+            as_attachment=True,
+            download_name=resource.attachment_original_name
+        )
+    except Exception as e:
+        flash('Error downloading file.', 'error')
+        return redirect(url_for('resources.detail', id=id))
 
 @resources_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required

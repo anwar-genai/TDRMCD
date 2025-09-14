@@ -1,7 +1,17 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load environment variables, try both .env and env files
+try:
+    # Try loading from .env first
+    if os.path.exists('.env'):
+        load_dotenv('.env')
+    elif os.path.exists('env'):
+        load_dotenv('env')
+    else:
+        print("Warning: No environment file found (.env or env)")
+except Exception as e:
+    print(f"Warning: Could not load environment file: {e}")
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
@@ -32,4 +42,7 @@ class Config:
     # Jitsi Video Call Configuration
     JITSI_APP_ID = os.environ.get('JITSI_APP_ID')
     JITSI_APP_SECRET = os.environ.get('JITSI_APP_SECRET')
+    if JITSI_APP_SECRET:
+        # Replace \n with actual newlines for multi-line private key
+        JITSI_APP_SECRET = JITSI_APP_SECRET.replace('\\n', '\n')
     JITSI_KEY_ID = os.environ.get('JITSI_KEY_ID')  # Key ID from JaaS console

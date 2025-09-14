@@ -88,6 +88,60 @@
                             {{ form.sustainability_info(class="form-control", rows="4") }}
                         </div>
 
+                        <!-- File Attachment Section -->
+                        <div class="mb-4">
+                            <h5 class="fw-bold text-info mb-3">
+                                <i class="fas fa-paperclip me-2"></i>Supporting Documents
+                            </h5>
+                            
+                            {% if resource.attachment_filename %}
+                            <div class="alert alert-info mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file me-2"></i>
+                                    <div class="flex-grow-1">
+                                        <strong>Current attachment:</strong> {{ resource.attachment_original_name }}
+                                        <br><small class="text-muted">File size: {{ "%.1f"|format(resource.attachment_file_size / 1024) }} KB</small>
+                                    </div>
+                                    <a href="{{ url_for('resources.download_attachment', id=resource.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mb-3">
+                                {{ form.attachment.label(class="form-label fw-bold") }}
+                                {{ form.attachment(class="form-control") }}
+                                {% if form.attachment.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.attachment.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Upload a new supporting document to replace the current one (PDF, DOC, DOCX, TXT, XLS, XLSX, PPT, PPTX)
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.attachment_reference.label(class="form-label fw-bold") }}
+                                {{ form.attachment_reference(class="form-control", rows="3", placeholder="Provide a valid reference or source for your supporting document...") }}
+                                {% if form.attachment_reference.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.attachment_reference.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <strong>Required if uploading a file:</strong> Please provide a valid reference, source, or citation for your supporting document
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="d-flex justify-content-end gap-2">
                             <a class="btn btn-outline-secondary" href="{{ url_for('resources.detail', id=resource.id) }}">Cancel</a>
                             <button class="btn btn-primary" type="submit"><i class="fas fa-save me-1"></i>Save Changes</button>

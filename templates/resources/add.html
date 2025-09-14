@@ -126,8 +126,8 @@
                                 {{ form.longitude.label(class="form-label fw-bold") }}
                                 <div class="input-group">
                                     {{ form.longitude(class="form-control", placeholder="e.g., 71.5249", step="any") }}
-                                    <button type="button" class="btn btn-outline-secondary" onclick="showMapPicker()">
-                                        <i class="fas fa-map"></i>
+                                    <button type="button" class="btn btn-outline-primary" onclick="showMapPicker()">
+                                        <i class="fas fa-map me-1"></i>Pick on Map
                                     </button>
                                 </div>
                                 {% if form.longitude.errors %}
@@ -139,10 +139,15 @@
                                 {% endif %}
                             </div>
                             
-                            <div class="col-12">
-                                <div class="small text-muted">
+                            <div class="col-12 mb-3">
+                                <div class="d-flex justify-content-center">
+                                    <button type="button" class="btn btn-primary btn-lg" onclick="showMapPicker()">
+                                        <i class="fas fa-map-marked-alt me-2"></i>Select Location on Map
+                                    </button>
+                                </div>
+                                <div class="small text-muted text-center mt-2">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Coordinates help others find the exact location of this resource on the map
+                                    Click the button above to select the exact location on the interactive map, or enter coordinates manually below
                                 </div>
                             </div>
                         </div>
@@ -194,6 +199,47 @@
                                 {% endif %}
                                 <div class="small text-muted mt-1">
                                     Share information about sustainable use and conservation practices
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- File Attachment Section -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <h5 class="fw-bold text-info mb-3">
+                                    <i class="fas fa-paperclip me-2"></i>Supporting Documents
+                                </h5>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.attachment.label(class="form-label fw-bold") }}
+                                {{ form.attachment(class="form-control") }}
+                                {% if form.attachment.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.attachment.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Upload supporting documents like research papers, reports, or documentation (PDF, DOC, DOCX, TXT, XLS, XLSX, PPT, PPTX)
+                                </div>
+                            </div>
+                            
+                            <div class="col-12 mb-3">
+                                {{ form.attachment_reference.label(class="form-label fw-bold") }}
+                                {{ form.attachment_reference(class="form-control", rows="3", placeholder="Provide a valid reference or source for your supporting document...") }}
+                                {% if form.attachment_reference.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.attachment_reference.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <div class="small text-muted mt-1">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <strong>Required if uploading a file:</strong> Please provide a valid reference, source, or citation for your supporting document
                                 </div>
                             </div>
                         </div>

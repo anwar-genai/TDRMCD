@@ -67,6 +67,12 @@ class Resource(db.Model):
     economic_value = db.Column(db.String(100))
     sustainability_info = db.Column(db.Text)
     image_url = db.Column(db.String(200))
+    # File attachment fields
+    attachment_filename = db.Column(db.String(200))  # Stored filename
+    attachment_original_name = db.Column(db.String(200))  # Original filename
+    attachment_file_type = db.Column(db.String(50))  # File extension
+    attachment_file_size = db.Column(db.Integer)  # File size in bytes
+    attachment_reference = db.Column(db.Text)  # Required reference for validation
     status = db.Column(db.String(20), default='active')  # active, inactive, under_review
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

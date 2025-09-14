@@ -25,6 +25,11 @@ def validate_kpk_coordinates(form, field):
         if not (70.10 <= lng <= 74.35):
             raise ValidationError('Longitude must be within Khyber Pakhtunkhwa region (70.10° to 74.35°).')
 
+def validate_attachment_reference(form, field):
+    """Validate that if attachment is provided, reference must also be provided"""
+    if form.attachment.data and not field.data:
+        raise ValidationError('Reference/Source is required when uploading a supporting document.')
+
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])
     password = PasswordField('Password', validators=[DataRequired()])
@@ -66,6 +71,17 @@ class ResourceForm(FlaskForm):
         Optional(),
         FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Images only!')
     ])
+    # File attachment fields
+    attachment = FileField('Supporting Document', validators=[
+        Optional(),
+        FileAllowed(['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx'], 
+                   'Only documents allowed! (PDF, DOC, DOCX, TXT, XLS, XLSX, PPT, PPTX)')
+    ])
+    attachment_reference = TextAreaField('Reference/Source', validators=[
+        Optional(),
+        Length(max=500),
+        validate_attachment_reference
+    ], description='Please provide a valid reference or source for your supporting document (required if file is uploaded)')
 
 class CommunityPostForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(min=5, max=200)])
