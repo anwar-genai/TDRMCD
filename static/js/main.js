@@ -647,26 +647,37 @@ function initializeHeroBubbles() {
     if (!container) return;
     const messages = [
         'Peace', 'Growth', 'Love', 'Unity', 'Hope', 'Sustainability',
-        'Prosperity', 'Respect', 'Community', 'Harmony', 'Resilience'
+        'Prosperity', 'Respect', 'Community', 'Harmony', 'Resilience',
+        'Empowerment', 'Inclusion', 'Wellbeing',
+        // Nature & heritage
+        'Forests', 'Mountains', 'Rivers', 'Biodiversity', 'Clean Energy', 'Heritage', 'Culture', 'Education', 'Health'
     ];
-    const icons = ['❤', '★', '✦', '✳', '◆'];
+    const icons = ['❤', '★', '✦', '✳', '◆', '⬤', '♻', '✿', '▲'];
 
     function spawnBubble() {
+        const wrap = document.createElement('div');
+        wrap.className = 'bubble-wrap';
         const el = document.createElement('div');
         el.className = 'bubble';
-        const useIcon = Math.random() < 0.4;
+        const useIcon = Math.random() < 0.35;
         const text = useIcon ? icons[Math.floor(Math.random()*icons.length)] : messages[Math.floor(Math.random()*messages.length)];
         el.textContent = text;
         const left = Math.floor(Math.random() * 90) + 5; // 5% - 95%
-        el.style.left = left + '%';
-        el.style.fontSize = (useIcon ? (12 + Math.random()*10) : (12 + Math.random()*6)) + 'px';
-        el.style.setProperty('--drift', (Math.random() * 80 - 40) + 'px');
-        container.appendChild(el);
+        wrap.style.setProperty('--left', left + '%');
+        wrap.style.setProperty('--drift', (Math.random() * 100 - 50) + 'px');
+        wrap.style.setProperty('--dur', (6 + Math.random()*3) + 's');
+        el.style.fontSize = (useIcon ? (14 + Math.random()*12) : (13 + Math.random()*7)) + 'px';
+        el.style.setProperty('--wob', (2.5 + Math.random()*2) + 's');
+        el.style.setProperty('--rot', (Math.random()*10 - 5) + 'deg');
+        el.style.setProperty('--hue', Math.floor(180 + Math.random()*120));
+        wrap.appendChild(el);
+        container.appendChild(wrap);
         // Remove after animation
-        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 6000);
+        const lifespan = parseFloat(wrap.style.getPropertyValue('--dur')) * 1000;
+        setTimeout(() => { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, lifespan);
     }
 
     // Spawn a few initially, then at intervals
-    for (let i = 0; i < 4; i++) setTimeout(spawnBubble, i * 400);
-    setInterval(spawnBubble, 1200);
+    for (let i = 0; i < 6; i++) setTimeout(spawnBubble, i * 300);
+    setInterval(spawnBubble, 1000);
 }
