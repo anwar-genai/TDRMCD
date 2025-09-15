@@ -19,12 +19,13 @@ let notifications = [];
 // Document ready
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
-    // Notifications API is not implemented yet; disable to avoid 404s
-    // initializeNotifications();
+    initializeNotifications();
     initializeChat();
     initializeFileUpload();
     initializeMap();
     initializeNavbarSearch();
+    initializeRevealOnScroll();
+    initializeCounters();
 });
 
 // Initialize application
@@ -78,12 +79,24 @@ function initializeApp() {
 // Notification system
 function initializeNotifications() {
     loadNotifications();
+    // Poll every 30s for new notifications
+    setInterval(loadNotifications, 30000);
     
     // Mark notification as read
     document.addEventListener('click', function(e) {
         if (e.target.matches('.notification-item') || e.target.closest('.notification-item')) {
             const notificationItem = e.target.closest('.notification-item');
             const notificationId = notificationItem.dataset.notificationId;
+            // Optimistically decrement without flicker
+            const badge = document.getElementById('notification-count');
+            if (badge && badge.textContent) {
+                const curr = parseInt(badge.textContent, 10) || 0;
+                if (curr > 0) {
+                    const next = curr - 1;
+                    if (badge.textContent !== String(next)) badge.textContent = String(next);
+                    if (next === 0) badge.style.display = 'none';
+                }
+            }
             markNotificationRead(notificationId);
         }
     });
@@ -129,30 +142,35 @@ function updateNotificationUI(notifications) {
     if (!notificationsList || !notificationCount) return;
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
-    notificationCount.textContent = unreadCount;
-    notificationCount.style.display = unreadCount > 0 ? 'inline' : 'none';
+    if (unreadCount > 0) {
+        if (notificationCount.textContent !== String(unreadCount)) {
+            notificationCount.textContent = unreadCount;
+        }
+        notificationCount.style.display = 'inline';
+    } else {
+        notificationCount.style.display = 'none';
+        notificationCount.textContent = '';
+    }
 
     if (notifications.length === 0) {
-        notificationsList.innerHTML = '<li><a class="dropdown-item text-muted" href="#">No notifications</a></li>';
+        notificationsList.innerHTML = '<a class="dropdown-item text-muted" href="#">No notifications</a>';
         return;
     }
 
     notificationsList.innerHTML = notifications.map(notification => `
-        <li>
-            <a class="dropdown-item notification-item ${!notification.is_read ? 'fw-bold' : ''}" 
-               href="#" data-notification-id="${notification.id}">
-                <div class="d-flex">
-                    <div class="flex-shrink-0 me-2">
-                        <i class="fas fa-${getNotificationIcon(notification.type)} text-${getNotificationColor(notification.type)}"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="fw-bold">${notification.title}</div>
-                        <div class="small text-muted">${notification.message}</div>
-                        <div class="small text-muted">${formatDate(notification.created_at)}</div>
-                    </div>
+        <a class="dropdown-item notification-item ${!notification.is_read ? 'fw-bold unread-notification' : ''}" 
+           href="${notification.url || resolveNotificationUrl(notification)}" data-notification-id="${notification.id}">
+            <div class="d-flex">
+                <div class="flex-shrink-0 me-2">
+                    <i class="fas fa-${getNotificationIcon(notification.type)} text-${getNotificationColor(notification.type)}"></i>
                 </div>
-            </a>
-        </li>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">${notification.title}</div>
+                    <div class="small text-muted">${notification.message}</div>
+                    <div class="small text-muted">${formatDate(notification.created_at)}</div>
+                </div>
+            </div>
+        </a>
     `).join('');
 }
 
@@ -206,6 +224,29 @@ function getNotificationColor(type) {
         'error': 'danger'
     };
     return colors[type] || 'primary';
+}
+
+function resolveNotificationUrl(notification) {
+    // Heuristic linking based on message/title keywords
+    const m = (notification.message || '').toLowerCase() + ' ' + (notification.title || '').toLowerCase();
+    // Post related
+    if (m.includes('post')) {
+        // Expect message may include an id pattern like [#123], otherwise fall back to community index
+        const idMatch = m.match(/#(\d+)/);
+        if (idMatch) {
+            return `/community/post/${idMatch[1]}`;
+        }
+        return '/community/';
+    }
+    // Comment related - try to navigate to post detail comments anchor
+    if (m.includes('comment')) {
+        const idMatch = m.match(/post\s*#(\d+)/);
+        if (idMatch) {
+            return `/community/post/${idMatch[1]}#comments`;
+        }
+        return '/community/';
+    }
+    return '/';
 }
 
 // Chat functionality
@@ -550,4 +591,51 @@ function validateSearch(e) {
         return false;
     }
     return true;
+}
+
+// Reveal on scroll
+function initializeRevealOnScroll() {
+    const containers = document.querySelectorAll('.reveal-on-scroll');
+    if (!containers.length) return;
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const targets = entry.target.querySelectorAll('.card, .activity-item');
+                targets.forEach((el, i) => {
+                    setTimeout(() => el.classList.add('is-visible'), i * 80);
+                });
+                observer.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.2
+    });
+    containers.forEach(c => observer.observe(c));
+}
+
+function initializeCounters() {
+    const counters = document.querySelectorAll('[data-counter]');
+    if (!counters.length) return;
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateCounter(entry.target);
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.8 });
+    counters.forEach(el => observer.observe(el));
+}
+
+function animateCounter(el) {
+    const target = parseInt(el.getAttribute('data-target') || '0', 10);
+    const duration = 1200;
+    const start = performance.now();
+    function step(now) {
+        const progress = Math.min(1, (now - start) / duration);
+        const value = Math.floor(progress * target);
+        el.textContent = value.toLocaleString();
+        if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
 }

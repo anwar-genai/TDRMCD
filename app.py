@@ -230,4 +230,15 @@ def on_video_call_started(data):
 
 
 if __name__ == '__main__':
+    # Ensure DB has url column for notifications (SQLite-safe migration)
+    with app.app_context():
+        try:
+            from sqlalchemy import text
+            result = db.session.execute(text("PRAGMA table_info(notification);"))
+            cols = {row[1] for row in result}  # row[1] is column name in PRAGMA output
+            if 'url' not in cols:
+                db.session.execute(text("ALTER TABLE notification ADD COLUMN url VARCHAR(255)"))
+                db.session.commit()
+        except Exception as e:
+            print(f"Warning: could not ensure notification.url column: {e}")
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)

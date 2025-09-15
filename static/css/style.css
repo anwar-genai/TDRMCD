@@ -133,9 +133,17 @@ body {
 }
 
 .notification-dropdown {
-    min-width: 300px;
-    max-height: 400px;
+    min-width: 320px;
+}
+
+.notification-list-scroll {
+    max-height: 360px;
     overflow-y: auto;
+}
+
+.unread-notification {
+    background: rgba(0, 123, 255, 0.08);
+    backdrop-filter: saturate(120%);
 }
 
 /* Hero Section */

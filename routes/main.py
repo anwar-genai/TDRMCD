@@ -189,3 +189,21 @@ def mark_all_notifications_read():
     
     db.session.commit()
     return jsonify({'status': 'success'})
+
+@main_bp.route('/api/notifications')
+@login_required
+def get_notifications():
+    """Return recent notifications for the current user"""
+    limit = request.args.get('limit', 10, type=int)
+    items = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(limit).all()
+    return jsonify({
+        'notifications': [{
+            'id': n.id,
+            'title': n.title,
+            'message': n.message,
+            'type': n.notification_type,
+            'is_read': n.is_read,
+            'created_at': n.created_at.isoformat(),
+            'url': n.url or ''
+        } for n in items]
+    })

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, CommunityPost, Comment, ChatMessage, FileSubmission, VideoCall, PostLike, ChatRoom, CommentLike
+from models import db, CommunityPost, Comment, ChatMessage, FileSubmission, VideoCall, PostLike, ChatRoom, CommentLike, Notification
 from forms import CommunityPostForm, CommentForm, FileSubmissionForm
 from werkzeug.utils import secure_filename
 import os
@@ -140,6 +140,35 @@ def add_comment(id):
         db.session.add(comment)
         db.session.commit()
         
+        # Notifications
+        try:
+            # Reply to a comment
+            if parent_id:
+                parent_comment = Comment.query.get(parent_id)
+                if parent_comment and parent_comment.author_id != current_user.id:
+                    db.session.add(Notification(
+                        title='New reply to your comment',
+                        message=f"{current_user.get_full_name()} replied on '{post.title[:40] or 'your post'}': {comment.content[:80]}",
+                        notification_type='info',
+                        user_id=parent_comment.author_id,
+                        url=url_for('community.post_detail', id=post.id) + '#comments'
+                    ))
+            # Top-level comment on a post
+            else:
+                if post.author_id != current_user.id:
+                    db.session.add(Notification(
+                        title='New comment on your post',
+                        message=f"{current_user.get_full_name()} commented on '{post.title[:40] or 'your post'}'",
+                        notification_type='info',
+                        user_id=post.author_id,
+                        url=url_for('community.post_detail', id=post.id) + '#comments'
+                    ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            # Fail silently for notifications
+            pass
+        
         flash('Comment added successfully!', 'success')
     else:
         flash('Error adding comment. Please try again.', 'error')
@@ -159,6 +188,20 @@ def like_comment(comment_id):
         db.session.add(CommentLike(user_id=current_user.id, comment_id=comment.id))
         db.session.commit()
         liked = True
+        # Notify comment author on like
+        try:
+            if comment.author_id != current_user.id:
+                db.session.add(Notification(
+                    title='Your comment was liked',
+                    message=f"{current_user.get_full_name()} liked your comment",
+                    notification_type='success',
+                    user_id=comment.author_id,
+                    url=url_for('community.post_detail', id=comment.post_id) + '#comments'
+                ))
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+            pass
     # Return new like count
     likes_count = CommentLike.query.filter_by(comment_id=comment.id).count()
     return jsonify({'likes': likes_count, 'liked': liked})
@@ -180,6 +223,20 @@ def like_post(id):
         db.session.add(new_like)
         post.likes = (post.likes or 0) + 1
         db.session.commit()
+        # Notify post author on like
+        try:
+            if post.author_id != current_user.id:
+                db.session.add(Notification(
+                    title='Your post was liked',
+                    message=f"{current_user.get_full_name()} liked your post '{post.title[:40] or 'post'}'",
+                    notification_type='success',
+                    user_id=post.author_id,
+                    url=url_for('community.post_detail', id=post.id)
+                ))
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+            pass
         return jsonify({'likes': post.likes, 'liked': True})
 
 @community_bp.route('/chat')
