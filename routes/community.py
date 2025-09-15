@@ -459,6 +459,12 @@ def test_jwt():
             'secret_length': len(jitsi_app_secret) if jitsi_app_secret else 0
         })
 
+@community_bp.route('/video_call/webrtc-test')
+@login_required
+def webrtc_test():
+    """WebRTC compatibility test page"""
+    return render_template('community/webrtc_test.html')
+
 @community_bp.route('/video_call/<room_id>/end', methods=['POST'])
 @login_required
 def end_video_call(room_id):

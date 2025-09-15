@@ -118,75 +118,160 @@ const options = {
         displayName: "{% if current_user.is_authenticated %}{% if current_user.first_name and current_user.last_name %}{{ current_user.first_name }} {{ current_user.last_name }}{% else %}{{ current_user.username }}{% endif %}{% else %}Guest{% endif %}",
         email: "{{ current_user.email if current_user.is_authenticated else '' }}"
     },
+    // WebRTC and browser compatibility settings
+    onload: function() {
+        console.log('🎥 Jitsi Meet loaded successfully');
+    },
     configOverwrite: {
-        // Configuration that works for both JaaS and public rooms
+        // WebRTC and browser compatibility fixes
+        disableBrowserCheck: true,  // CRITICAL: Disable browser compatibility check
+        enableNoAudioDetection: false,
+        enableNoisyMicDetection: false,  // Can interfere with WebRTC
+        
+        // Basic configuration
         startWithAudioMuted: false,
         startWithVideoMuted: false,
         enableWelcomePage: false,
         enableClosePage: false,
-        prejoinPageEnabled: false,  // Skip prejoin for better UX
+        prejoinPageEnabled: false,
         
-        // Moderator features (work with JaaS)
+        // Moderator features
         disableModeratorIndicator: false,
         enableLobby: false,
         requireDisplayName: false,
         
-        // Video quality settings
+        // WebRTC-friendly video settings
         resolution: 720,
         constraints: {
             video: {
                 height: {
                     ideal: 720,
-                    max: 720,
-                    min: 240
+                    max: 1080,
+                    min: 180
+                },
+                width: {
+                    ideal: 1280,
+                    max: 1920,
+                    min: 320
+                },
+                frameRate: {
+                    ideal: 30,
+                    max: 30
                 }
+            },
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
             }
+        },
+        
+        // WebRTC optimization
+        enableLayerSuspension: true,
+        channelLastN: 10,
+        enableSimulcast: true,
+        
+        // P2P settings (can cause issues, disable for better compatibility)
+        p2p: {
+            enabled: false  // Disable P2P to avoid WebRTC issues
         },
         
         // Features configuration
         enableInsecureRoomNameWarning: false,
         disableDeepLinking: true,
-        disableInviteFunctions: false,
         doNotStoreRoom: true,
         
-        // Performance settings
-        enableLayerSuspension: true,
-        p2p: {
-            enabled: true
-        },
-        
-        // JaaS specific features (ignored in public rooms)
-        enableNoisyMicDetection: true,
-        enableTalkWhileMuted: true,
+        // Disable features that might interfere
         disableReactions: false,
         disablePolls: false,
-        toolbarButtons: [
-            'microphone', 'camera', 'desktop', 'fullscreen',
-            'fodeviceselection', 'hangup', 'chat', 'settings',
-            'videoquality', 'filmstrip', 'participants',
-            'tileview', 'videobackgroundblur', 'raisehand'
-        ]
+        enableTalkWhileMuted: false  // Can interfere with audio detection
     },
     interfaceConfigOverwrite: {
-        // Minimal toolbar configuration
+        // Browser compatibility settings
+        ENFORCE_HTTPS: false,  // Don't enforce HTTPS in development
+        DISABLE_FOCUS_INDICATOR: false,
+        DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
+        
+        // Toolbar configuration
         TOOLBAR_BUTTONS: [
             'microphone', 'camera', 'desktop', 'fullscreen',
             'fodeviceselection', 'hangup', 'chat', 'settings',
             'videoquality', 'filmstrip', 'participants-pane',
             'tileview', 'videobackgroundblur'
         ],
+        
         SETTINGS_SECTIONS: [
             'devices', 'language', 'profile'
         ],
+        
+        // Branding
         SHOW_JITSI_WATERMARK: false,
         SHOW_BRAND_WATERMARK: false,
         SHOW_POWERED_BY: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        
+        // Video background
         DISABLE_VIDEO_BACKGROUND: false,
-        MOBILE_APP_PROMO: false
+        
+        // Mobile and browser compatibility
+        MOBILE_APP_PROMO: false,
+        OPTIMAL_BROWSERS: ['chrome', 'chromium', 'firefox', 'nwjs', 'electron', 'safari'],
+        UNSUPPORTED_BROWSERS: []  // Clear unsupported browsers list
     }
 };
 let api = null;
 let isVirtualBackgroundEnabled = false;
+
+// WebRTC support detection
+function checkWebRTCSupport() {
+    console.log('🔍 Checking WebRTC support...');
+    
+    // Check for basic WebRTC APIs
+    const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) || 
+                           !!(navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia);
+    
+    const hasRTCPeerConnection = !!(window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection);
+    
+    const hasRTCSessionDescription = !!(window.RTCSessionDescription || window.webkitRTCSessionDescription || window.mozRTCSessionDescription);
+    
+    const hasRTCIceCandidate = !!(window.RTCIceCandidate || window.webkitRTCIceCandidate || window.mozRTCIceCandidate);
+    
+    console.log('WebRTC Support Check:');
+    console.log('- getUserMedia:', hasGetUserMedia);
+    console.log('- RTCPeerConnection:', hasRTCPeerConnection);
+    console.log('- RTCSessionDescription:', hasRTCSessionDescription);
+    console.log('- RTCIceCandidate:', hasRTCIceCandidate);
+    
+    const isSupported = hasGetUserMedia && hasRTCPeerConnection && hasRTCSessionDescription && hasRTCIceCandidate;
+    
+    if (isSupported) {
+        console.log('✅ WebRTC is supported');
+    } else {
+        console.log('❌ WebRTC is not fully supported');
+    }
+    
+    return isSupported;
+}
+
+// Test media permissions
+function testMediaPermissions() {
+    return new Promise((resolve) => {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+                .then(() => {
+                    console.log('✅ Media permissions granted');
+                    resolve(true);
+                })
+                .catch((error) => {
+                    console.warn('⚠️ Media permissions denied or not available:', error);
+                    resolve(false);
+                });
+        } else {
+            console.warn('⚠️ getUserMedia not available');
+            resolve(false);
+        }
+    });
+}
 
 function initJitsi() {
     const mode = isJaaS ? 'JaaS' : 'Public';
@@ -198,13 +283,70 @@ function initJitsi() {
     {% if jwt_token %}
     console.log('JWT Token (first 50 chars):', "{{ jwt_token[:50] }}...");
     {% endif %}
+    
+    // Check WebRTC support before initializing
+    if (!checkWebRTCSupport()) {
+        console.error('WebRTC not supported in this browser');
+        document.querySelector('#jitsi-container').innerHTML = '<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle me-2"></i>WebRTC is not supported in your browser. Please use a modern browser like Chrome, Firefox, or Safari.</div>';
+        return;
+    }
+    
     console.log('Options:', options);
+    console.log('✅ WebRTC support detected, initializing Jitsi...');
     
     try {
+        // Force HTTPS for WebRTC compatibility if not already
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            console.warn('⚠️  WebRTC works best over HTTPS. Consider using HTTPS for production.');
+        }
+        
         api = new JitsiMeetExternalAPI(domain, options);
+        
+        // Add error handling for Jitsi initialization
+        api.addListener('readyToClose', () => {
+            console.log('Jitsi is ready to close');
+        });
+        
+        // Handle initialization errors
+        api.addListener('participantRoleChanged', (event) => {
+            console.log('Participant role changed:', event);
+        });
+        
     } catch (error) {
         console.error('Failed to initialize Jitsi Meet:', error);
-        document.querySelector('#jitsi-container').innerHTML = '<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load video call. Please check your internet connection and try again.</div>';
+        
+        // Provide specific error messages based on error type
+        let errorMessage = 'Failed to load video call. ';
+        if (error.message && error.message.includes('WebRTC')) {
+            errorMessage += 'WebRTC is not supported or blocked in your browser.';
+        } else if (error.message && error.message.includes('network')) {
+            errorMessage += 'Network connection issue. Please check your internet connection.';
+        } else {
+            errorMessage += 'Please refresh the page and try again.';
+        }
+        
+        document.querySelector('#jitsi-container').innerHTML = `
+            <div class="alert alert-danger m-3">
+                <i class="fas fa-exclamation-triangle me-2"></i>${errorMessage}
+                <hr>
+                <div class="mt-3">
+                    <h6>Troubleshooting Steps:</h6>
+                    <ul class="small">
+                        <li>Ensure you're using Chrome, Firefox, Safari, or Edge</li>
+                        <li>Allow camera and microphone permissions</li>
+                        <li>Disable browser extensions that might block WebRTC</li>
+                        <li>Try refreshing the page</li>
+                        <li>Check if your network blocks WebRTC traffic</li>
+                    </ul>
+                    <button class="btn btn-primary btn-sm" onclick="location.reload()">
+                        <i class="fas fa-refresh me-1"></i>Retry
+                    </button>
+                    <a href="https://test.webrtc.org/" target="_blank" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-external-link-alt me-1"></i>Test WebRTC
+                    </a>
+                </div>
+            </div>
+        `;
         return;
     }
     
@@ -321,13 +463,26 @@ function toggleParticipants() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Page loaded, starting video call initialization...');
+    
     // Check if Jitsi API is loaded
     if (typeof JitsiMeetExternalAPI === 'undefined') {
         console.error('JitsiMeetExternalAPI is not defined');
         document.querySelector('#jitsi-container').innerHTML = '<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i>Video call service is unavailable. Please refresh the page or try again later.</div>';
         return;
     }
-    initJitsi();
+    
+    // Test WebRTC and media permissions before initializing
+    console.log('🔬 Running pre-initialization checks...');
+    
+    testMediaPermissions().then((hasMediaAccess) => {
+        if (!hasMediaAccess) {
+            console.warn('⚠️ Media permissions not available, but proceeding with initialization');
+        }
+        
+        // Initialize Jitsi regardless of media permissions (user can grant them later)
+        initJitsi();
+    });
 });
 
 function openEndCallModal() {

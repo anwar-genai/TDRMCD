@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}WebRTC Test{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-video me-2"></i>WebRTC Compatibility Test</h5>
+                </div>
+                <div class="card-body">
+                    <div id="test-results">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Testing...</span>
+                            </div>
+                            <p class="mt-2">Running WebRTC compatibility tests...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Browser Information:</h6>
+                        <ul id="browser-info" class="list-unstyled">
+                            <!-- Browser info will be populated here -->
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button class="btn btn-primary" onclick="runTests()">
+                            <i class="fas fa-play me-1"></i>Run Tests Again
+                        </button>
+                        <a href="{{ url_for('community.video_calls') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to Video Calls
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getBrowserInfo() {
+    const info = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        cookieEnabled: navigator.cookieEnabled,
+        onLine: navigator.onLine,
+        protocol: location.protocol,
+        hostname: location.hostname
+    };
+    
+    // Detect browser
+    let browserName = 'Unknown';
+    if (navigator.userAgent.includes('Chrome')) browserName = 'Chrome';
+    else if (navigator.userAgent.includes('Firefox')) browserName = 'Firefox';
+    else if (navigator.userAgent.includes('Safari')) browserName = 'Safari';
+    else if (navigator.userAgent.includes('Edge')) browserName = 'Edge';
+    
+    info.browserName = browserName;
+    return info;
+}
+
+function testWebRTCSupport() {
+    const tests = {
+        getUserMedia: false,
+        RTCPeerConnection: false,
+        RTCSessionDescription: false,
+        RTCIceCandidate: false,
+        mediaDevices: false,
+        webkitGetUserMedia: false,
+        mozGetUserMedia: false
+    };
+    
+    // Test getUserMedia
+    tests.getUserMedia = !!(navigator.getUserMedia);
+    tests.webkitGetUserMedia = !!(navigator.webkitGetUserMedia);
+    tests.mozGetUserMedia = !!(navigator.mozGetUserMedia);
+    tests.mediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    
+    // Test RTCPeerConnection
+    tests.RTCPeerConnection = !!(window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection);
+    
+    // Test RTCSessionDescription
+    tests.RTCSessionDescription = !!(window.RTCSessionDescription || window.webkitRTCSessionDescription || window.mozRTCSessionDescription);
+    
+    // Test RTCIceCandidate
+    tests.RTCIceCandidate = !!(window.RTCIceCandidate || window.webkitRTCIceCandidate || window.mozRTCIceCandidate);
+    
+    return tests;
+}
+
+async function testMediaAccess() {
+    const results = {
+        audio: false,
+        video: false,
+        error: null
+    };
+    
+    try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            // Test audio access
+            try {
+                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                results.audio = true;
+                audioStream.getTracks().forEach(track => track.stop());
+            } catch (e) {
+                console.warn('Audio access failed:', e);
+            }
+            
+            // Test video access
+            try {
+                const videoStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+                results.video = true;
+                videoStream.getTracks().forEach(track => track.stop());
+            } catch (e) {
+                console.warn('Video access failed:', e);
+            }
+        }
+    } catch (error) {
+        results.error = error.message;
+    }
+    
+    return results;
+}
+
+function displayResults(webrtcTests, mediaTests, browserInfo) {
+    const resultsDiv = document.getElementById('test-results');
+    const browserInfoDiv = document.getElementById('browser-info');
+    
+    // Display browser info
+    browserInfoDiv.innerHTML = `
+        <li><strong>Browser:</strong> ${browserInfo.browserName}</li>
+        <li><strong>Platform:</strong> ${browserInfo.platform}</li>
+        <li><strong>Protocol:</strong> ${browserInfo.protocol}</li>
+        <li><strong>Hostname:</strong> ${browserInfo.hostname}</li>
+        <li><strong>Online:</strong> ${browserInfo.onLine ? 'Yes' : 'No'}</li>
+    `;
+    
+    // Calculate overall compatibility
+    const criticalTests = ['mediaDevices', 'RTCPeerConnection', 'RTCSessionDescription', 'RTCIceCandidate'];
+    const passedCritical = criticalTests.filter(test => webrtcTests[test]).length;
+    const isCompatible = passedCritical === criticalTests.length;
+    
+    const alertClass = isCompatible ? 'alert-success' : 'alert-danger';
+    const icon = isCompatible ? 'fa-check-circle' : 'fa-times-circle';
+    const status = isCompatible ? 'Compatible' : 'Not Compatible';
+    
+    resultsDiv.innerHTML = `
+        <div class="alert ${alertClass}">
+            <h5><i class="fas ${icon} me-2"></i>WebRTC ${status}</h5>
+            <p class="mb-0">Your browser ${isCompatible ? 'supports' : 'does not fully support'} WebRTC video calling.</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h6>WebRTC API Support:</h6>
+                <ul class="list-unstyled">
+                    ${Object.entries(webrtcTests).map(([test, result]) => 
+                        `<li><i class="fas fa-${result ? 'check text-success' : 'times text-danger'} me-2"></i>${test}</li>`
+                    ).join('')}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Media Access:</h6>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-${mediaTests.audio ? 'check text-success' : 'times text-danger'} me-2"></i>Audio Access</li>
+                    <li><i class="fas fa-${mediaTests.video ? 'check text-success' : 'times text-danger'} me-2"></i>Video Access</li>
+                </ul>
+                ${mediaTests.error ? `<small class="text-muted">Error: ${mediaTests.error}</small>` : ''}
+            </div>
+        </div>
+        
+        ${!isCompatible ? `
+            <div class="alert alert-warning mt-3">
+                <h6>Recommendations:</h6>
+                <ul class="mb-0">
+                    <li>Update your browser to the latest version</li>
+                    <li>Try Chrome, Firefox, Safari, or Edge</li>
+                    <li>Check if WebRTC is disabled in browser settings</li>
+                    <li>Disable browser extensions that might block WebRTC</li>
+                </ul>
+            </div>
+        ` : ''}
+    `;
+}
+
+async function runTests() {
+    const resultsDiv = document.getElementById('test-results');
+    resultsDiv.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Testing...</span>
+            </div>
+            <p class="mt-2">Running WebRTC compatibility tests...</p>
+        </div>
+    `;
+    
+    try {
+        const browserInfo = getBrowserInfo();
+        const webrtcTests = testWebRTCSupport();
+        const mediaTests = await testMediaAccess();
+        
+        displayResults(webrtcTests, mediaTests, browserInfo);
+    } catch (error) {
+        resultsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <h5><i class="fas fa-exclamation-triangle me-2"></i>Test Failed</h5>
+                <p>An error occurred while running the tests: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Run tests when page loads
+document.addEventListener('DOMContentLoaded', runTests);
+</script>
+{% endblock %}
