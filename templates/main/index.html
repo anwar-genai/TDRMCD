@@ -24,6 +24,7 @@
             </div>
         </div>
     </div>
+    <div class="hero-bubbles" aria-hidden="true"></div>
 </section>
 
 <!-- Statistics Section -->
@@ -293,6 +294,32 @@
 .reveal-on-scroll .activity-item.is-visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* Floating bubbles/hearts */
+.hero-bubbles {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.hero-bubbles .bubble {
+    position: absolute;
+    bottom: 0;
+    color: rgba(255,255,255,0.9);
+    font-weight: 700;
+    white-space: nowrap;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    animation: rise 6s linear forwards;
+}
+
+@keyframes rise {
+    0% { transform: translateY(0) translateX(0) scale(0.9); opacity: 0; }
+    10% { opacity: 1; }
+    100% { transform: translateY(-320px) translateX(var(--drift, 0px)) scale(1.05); opacity: 0; }
 }
 
 .avatar {

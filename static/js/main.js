@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeNavbarSearch();
     initializeRevealOnScroll();
     initializeCounters();
+    initializeHeroBubbles();
 });
 
 // Initialize application
@@ -638,4 +639,34 @@ function animateCounter(el) {
         if (progress < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
+}
+
+// Hero bubbles / hearts with messages
+function initializeHeroBubbles() {
+    const container = document.querySelector('.hero-bubbles');
+    if (!container) return;
+    const messages = [
+        'Peace', 'Growth', 'Love', 'Unity', 'Hope', 'Sustainability',
+        'Prosperity', 'Respect', 'Community', 'Harmony', 'Resilience'
+    ];
+    const icons = ['❤', '★', '✦', '✳', '◆'];
+
+    function spawnBubble() {
+        const el = document.createElement('div');
+        el.className = 'bubble';
+        const useIcon = Math.random() < 0.4;
+        const text = useIcon ? icons[Math.floor(Math.random()*icons.length)] : messages[Math.floor(Math.random()*messages.length)];
+        el.textContent = text;
+        const left = Math.floor(Math.random() * 90) + 5; // 5% - 95%
+        el.style.left = left + '%';
+        el.style.fontSize = (useIcon ? (12 + Math.random()*10) : (12 + Math.random()*6)) + 'px';
+        el.style.setProperty('--drift', (Math.random() * 80 - 40) + 'px');
+        container.appendChild(el);
+        // Remove after animation
+        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 6000);
+    }
+
+    // Spawn a few initially, then at intervals
+    for (let i = 0; i < 4; i++) setTimeout(spawnBubble, i * 400);
+    setInterval(spawnBubble, 1200);
 }
