@@ -91,7 +91,7 @@
                                         </a>
                                     </div>
                                     <form id="reply-form-{{ c.id }}" class="mt-2 d-none" method="post" action="{{ url_for('community.add_comment', id=post.id) }}">
-                                        {{ comment_form.hidden_tag() }}
+                                        {{ comment_form.csrf_token }}
                                         <input type="hidden" name="parent_id" value="{{ c.id }}">
                                         <textarea name="content" class="form-control mb-2" rows="2" placeholder="Write a reply..."></textarea>
                                         <button class="btn btn-sm btn-primary" type="submit">Reply</button>
@@ -176,6 +176,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+function toggleReply(commentId) {
+    const form = document.getElementById(`reply-form-${commentId}`);
+    if (!form) return;
+    form.classList.toggle('d-none');
+}
+
+async function toggleCommentLike(commentId) {
+    try {
+        const res = await fetch(`/community/comment/${commentId}/like`, { method: 'POST' });
+        const data = await res.json();
+        const countEl = document.getElementById(`comment-like-count-${commentId}`);
+        if (countEl) countEl.textContent = data.likes;
+    } catch (e) {
+        console.error(e);
+    }
+}
 </script>
 {% endblock %}
 

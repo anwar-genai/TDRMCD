@@ -14,8 +14,21 @@
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data">
                         {{ form.hidden_tag() }}
+                        <input type="hidden" name="post_type" id="post_type" value="">
 
                         <div class="mb-3">
+                            <label class="form-label fw-bold">Post Type</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-outline-primary" data-post-type="discussion"><i class="fas fa-comments me-1"></i>Discussion</button>
+                                <button type="button" class="btn btn-outline-primary" data-post-type="question"><i class="fas fa-question-circle me-1"></i>Question</button>
+                                <button type="button" class="btn btn-outline-primary" data-post-type="announcement"><i class="fas fa-bullhorn me-1"></i>Announcement</button>
+                                <button type="button" class="btn btn-outline-primary" data-post-type="news"><i class="fas fa-newspaper me-1"></i>News</button>
+                                <button type="button" class="btn btn-outline-secondary" data-post-type="quick"><i class="fas fa-bolt me-1"></i>Quick Update (content only)</button>
+                            </div>
+                            <div class="form-text">Choose a type to auto-set category and adjust fields.</div>
+                        </div>
+
+                        <div class="mb-3" id="title-group">
                             {{ form.title.label(class="form-label fw-bold") }}
                             {{ form.title(class="form-control form-control-lg") }}
                             {% if form.title.errors %}
@@ -23,7 +36,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="row">
+                        <div class="row" id="meta-row">
                             <div class="col-md-6 mb-3">
                                 {{ form.category.label(class="form-label fw-bold") }}
                                 {{ form.category(class="form-select form-select-lg") }}
@@ -36,13 +49,13 @@
 
                         <div class="mb-3">
                             {{ form.content.label(class="form-label fw-bold") }}
-                            {{ form.content(class="form-control", rows="8", placeholder="Share details with the community...") }}
+                            {{ form.content(class="form-control", rows="3", placeholder="Share details with the community...") }}
                             {% if form.content.errors %}
                                 <div class="text-danger small mt-1">{% for e in form.content.errors %}<div>{{ e }}</div>{% endfor %}</div>
                             {% endif %}
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-3" id="image-group">
                             {{ form.image.label(class="form-label fw-bold") }}
                             {{ form.image(class="form-control", accept="image/*") }}
                         </div>
@@ -57,6 +70,65 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeButtons = document.querySelectorAll('[data-post-type]');
+    const categorySelect = document.getElementById('{{ form.category.id }}');
+    const titleInput = document.getElementById('{{ form.title.id }}');
+    const titleGroup = document.getElementById('title-group');
+    const metaRow = document.getElementById('meta-row');
+    const imageGroup = document.getElementById('image-group');
+    const contentInput = document.getElementById('{{ form.content.id }}');
+    const postTypeInput = document.getElementById('post_type');
+
+    const typeToCategory = {
+        discussion: 'discussion',
+        question: 'question',
+        announcement: 'announcement',
+        news: 'news'
+    };
+
+    typeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            typeButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const type = this.getAttribute('data-post-type');
+            if (postTypeInput) postTypeInput.value = type;
+            if (type === 'quick') {
+                titleInput.placeholder = 'Optional title (auto from content if left empty)';
+                // Show only content field
+                if (titleGroup) titleGroup.style.display = 'none';
+                if (metaRow) metaRow.style.display = 'none';
+                if (imageGroup) imageGroup.style.display = 'none';
+            } else {
+                if (typeToCategory[type]) {
+                    categorySelect.value = typeToCategory[type];
+                }
+                titleInput.placeholder = '';
+                // Restore other fields
+                if (titleGroup) titleGroup.style.display = '';
+                if (metaRow) metaRow.style.display = '';
+                if (imageGroup) imageGroup.style.display = '';
+            }
+            titleInput.focus();
+        });
+    });
+
+    // Auto-resize content textarea
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.overflowY = 'hidden';
+        el.style.height = el.scrollHeight + 'px';
+    }
+    if (contentInput) {
+        autoResize(contentInput);
+        contentInput.addEventListener('input', function() { autoResize(contentInput); });
+    }
+});
+</script>
 {% endblock %}
 
 

@@ -37,11 +37,23 @@ def index():
     # Get categories for filter
     categories = ['discussion', 'question', 'announcement', 'news']
     
+    # Liked state for posts on this page
+    liked_post_ids = set()
+    if current_user.is_authenticated and posts.items:
+        from models import PostLike
+        page_post_ids = [p.id for p in posts.items]
+        likes = PostLike.query.filter(
+            PostLike.user_id == current_user.id,
+            PostLike.post_id.in_(page_post_ids)
+        ).with_entities(PostLike.post_id).all()
+        liked_post_ids = {pid for (pid,) in likes}
+    
     return render_template('community/index.html',
                          posts=posts,
                          categories=categories,
                          current_category=category,
-                         current_sort=sort_by)
+                         current_sort=sort_by,
+                         liked_post_ids=liked_post_ids)
 
 @community_bp.route('/post/<int:id>')
 def post_detail(id):
@@ -108,11 +120,21 @@ def add_comment(id):
     form = CommentForm()
     
     if form.validate_on_submit():
+        # Robustly parse parent_id from form data (handle duplicate inputs)
+        parent_id = None
+        parent_candidates = request.form.getlist('parent_id') or []
+        for val in reversed(parent_candidates):
+            try:
+                if val and int(val) > 0:
+                    parent_id = int(val)
+                    break
+            except ValueError:
+                continue
         comment = Comment(
             content=form.content.data,
             author_id=current_user.id,
             post_id=id,
-            parent_id=form.parent_id.data if form.parent_id.data else None
+            parent_id=parent_id
         )
         
         db.session.add(comment)

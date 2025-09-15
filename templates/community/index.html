@@ -65,18 +65,39 @@
                                     {% endif %}
                                 </div>
                                 <div>
-                                    <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=post.id) }}">
-                                        <h5 class="mb-1">{{ post.title }}</h5>
-                                    </a>
+                                    {% if post.title and post.title.strip() %}
+                                        <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=post.id) }}">
+                                            <h5 class="mb-1">{{ post.title }}</h5>
+                                        </a>
+                                    {% endif %}
                                     <div class="text-muted small">By <a class="text-decoration-none" href="{{ url_for('auth.public_profile', username=post.author.username) }}">{{ post.author.get_full_name() }}</a> • {{ post.created_at.strftime('%b %d, %Y') }}</div>
                                 </div>
                             </div>
                             <span class="badge bg-secondary">{{ post.category.title() }}</span>
                         </div>
-                        <p class="mt-2 mb-2 text-muted">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
-                        <div class="d-flex gap-3 text-muted small">
-                            <span><i class="fas fa-heart me-1 text-danger"></i>{{ post.likes }}</span>
-                            <span><i class="fas fa-eye me-1"></i>{{ post.views }}</span>
+                        {% set is_content_only = not post.title or not post.title.strip() %}
+                        <div class="mt-2 mb-2">
+                            {% if is_content_only %}
+                                {% set limit = 200 %}
+                                <div id="post-snippet-{{ post.id }}" class="text-muted">
+                                    {{ post.content[:limit] }}{% if post.content|length > limit %}...{% endif %}
+                                </div>
+                                {% if post.content|length > limit %}
+                                <a href="#" class="small" onclick="toggleSeeMore({{ post.id }});return false;" id="see-more-{{ post.id }}">See more</a>
+                                <div id="post-full-{{ post.id }}" class="text-muted d-none">{{ post.content }}</div>
+                                {% endif %}
+                            {% else %}
+                                <p class="text-muted">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex gap-3 align-items-center text-muted small">
+                            <a href="#" class="text-decoration-none" onclick="return togglePostLike({{ post.id }});"><i class="fas fa-heart me-1 text-danger"></i><span id="post-like-text-{{ post.id }}">{{ 'Liked' if current_user.is_authenticated and post.id in liked_post_ids else 'Like' }}</span></a>
+                            <span id="post-like-count-{{ post.id }}">{{ post.likes }}</span>
+                            {% if is_content_only %}
+                            <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=post.id) }}#comments">Comment</a>
+                            {% else %}
+                            <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=post.id) }}">Open</a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -121,4 +142,39 @@
 </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+async function togglePostLike(postId) {
+    try {
+        const res = await fetch(`/community/post/${postId}/like`, { method: 'POST' });
+        const data = await res.json();
+        const countEl = document.getElementById(`post-like-count-${postId}`);
+        const textEl = document.getElementById(`post-like-text-${postId}`);
+        if (countEl) countEl.textContent = data.likes;
+        if (textEl) textEl.textContent = data.liked ? 'Liked' : 'Like';
+        return false;
+    } catch (e) {
+        console.error(e);
+        return false;
+    }
+}
 
+function toggleSeeMore(postId) {
+    const snip = document.getElementById(`post-snippet-${postId}`);
+    const full = document.getElementById(`post-full-${postId}`);
+    const link = document.getElementById(`see-more-${postId}`);
+    if (!snip || !full || !link) return false;
+    const expanded = !full.classList.contains('d-none');
+    if (expanded) {
+        full.classList.add('d-none');
+        snip.classList.remove('d-none');
+        link.textContent = 'See more';
+    } else {
+        snip.classList.add('d-none');
+        full.classList.remove('d-none');
+        link.textContent = 'See less';
+    }
+    return false;
+}
+</script>
+{% endblock %}
