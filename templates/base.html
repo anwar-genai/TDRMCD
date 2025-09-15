@@ -58,8 +58,8 @@
                 </ul>
                 
                 <!-- Search Form -->
-                <form class="d-flex me-3" action="{{ url_for('main.search') }}" method="GET">
-                    <input class="form-control me-2" type="search" name="q" placeholder="Search resources, posts, users..." value="{{ request.args.get('q', '') }}">
+                <form class="d-flex me-3 search-form no-loading" action="{{ url_for('main.search') }}" method="GET" onsubmit="return TDRMCD.validateSearch(event);">
+                    <input class="form-control me-2" type="search" name="q" id="navbar-search" placeholder="Search resources, posts, users..." value="{{ request.args.get('q', '') }}">
                     <button class="btn btn-outline-light" type="submit">
                         <i class="fas fa-search"></i>
                     </button>

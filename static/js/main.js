@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeChat();
     initializeFileUpload();
     initializeMap();
+    initializeNavbarSearch();
 });
 
 // Initialize application
@@ -46,9 +47,10 @@ function initializeApp() {
         });
     });
 
-    // Add loading states to buttons
+    // Add loading states to buttons (skip navbar search with .no-loading)
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', function() {
+            if (form.classList.contains('no-loading')) return;
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
                 const originalText = submitBtn.innerHTML;
@@ -487,5 +489,65 @@ window.TDRMCD = {
     showToast,
     formatDate,
     formatFileSize,
-    escapeHtml
+    escapeHtml,
+    validateSearch
 };
+
+// Navbar search enhancements
+function initializeNavbarSearch() {
+    const input = document.getElementById('navbar-search');
+    if (!input) return;
+    const phrases = [
+        'Search resources, posts, users',
+        'Search posts, users, resources',
+        'Search users, resources, posts'
+    ];
+    let pIndex = 0;
+    let charIndex = 0;
+    let typing = true;
+    let intervalId = null;
+
+    function typeStep() {
+        const text = phrases[pIndex];
+        if (typing) {
+            charIndex++;
+            input.setAttribute('placeholder', text.slice(0, charIndex) + '...');
+            if (charIndex >= text.length) {
+                typing = false;
+                setTimeout(() => {}, 1000);
+            }
+        } else {
+            charIndex--;
+            input.setAttribute('placeholder', text.slice(0, Math.max(0, charIndex)) + '...');
+            if (charIndex <= 0) {
+                typing = true;
+                pIndex = (pIndex + 1) % phrases.length;
+            }
+        }
+    }
+
+    function startTypewriter() {
+        if (intervalId) clearInterval(intervalId);
+        intervalId = setInterval(typeStep, 80);
+    }
+    function stopTypewriter() {
+        if (intervalId) clearInterval(intervalId);
+    }
+
+    // Pause on focus for user convenience
+    input.addEventListener('focus', stopTypewriter);
+    input.addEventListener('blur', startTypewriter);
+    startTypewriter();
+}
+
+function validateSearch(e) {
+    const input = document.getElementById('navbar-search');
+    if (!input) return true;
+    const q = (input.value || '').trim();
+    if (!q) {
+        e && e.preventDefault();
+        TDRMCD.showToast('Please enter something to search.', 'warning');
+        return false;
+    }
+    return true;
+}

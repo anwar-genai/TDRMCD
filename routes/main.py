@@ -8,7 +8,7 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     # Get featured resources
-    featured_resources = Resource.query.filter_by(status='active').limit(6).all()
+    featured_resources = Resource.query.filter_by(status='active').order_by(desc(Resource.created_at)).limit(6).all()
     
     # Get recent community posts
     recent_posts = CommunityPost.query.order_by(desc(CommunityPost.created_at)).limit(5).all()
@@ -16,10 +16,20 @@ def index():
     # Get active campaigns
     active_campaigns = Campaign.query.filter_by(is_active=True).limit(3).all()
     
+    # Real-time stats
+    total_resources = Resource.query.filter_by(status='active').count()
+    total_members = User.query.count()
+    active_discussions = CommunityPost.query.count()
+    active_campaigns_count = Campaign.query.filter_by(is_active=True).count()
+    
     return render_template('main/index.html', 
                          featured_resources=featured_resources,
                          recent_posts=recent_posts,
-                         active_campaigns=active_campaigns)
+                         active_campaigns=active_campaigns,
+                         total_resources=total_resources,
+                         total_members=total_members,
+                         active_discussions=active_discussions,
+                         active_campaigns_count=active_campaigns_count)
 
 @main_bp.route('/dashboard')
 @login_required
@@ -65,8 +75,9 @@ def search():
     category = request.args.get('category', 'all')
     page = request.args.get('page', 1, type=int)
     
-    if not query:
-        return render_template('main/search.html', results=[], query=query)
+    if not query or not query.strip():
+        # Redirect home or render search page with guidance
+        return render_template('main/search.html', results=[], query='')
     
     # Search in resources
     resource_query = Resource.query.filter_by(status='active')
