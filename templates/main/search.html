@@ -47,7 +47,7 @@
             <div class="col-12">
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    Found {{ resources.total if resources else 0 }} resources and {{ posts|length }} community posts for "{{ query }}"
+                    Found {{ resources.total if resources else 0 }} resources, {{ posts|length }} posts, and {{ users|length }} users for "{{ query }}"
                 </div>
             </div>
         </div>
@@ -142,6 +142,38 @@
                     </ul>
                 </nav>
                 {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Users Results -->
+        {% if users %}
+        <div class="row mb-5">
+            <div class="col-12">
+                <h4 class="fw-bold mb-3">
+                    <i class="fas fa-user me-2"></i>Users ({{ users|length }})
+                </h4>
+                <div class="list-group">
+                    {% for u in users %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-start">
+                            <div class="me-3">
+                                {% if u.avatar and u.avatar != 'default.jpg' %}
+                                <img src="{{ url_for('serve_uploaded_file', subdir='avatars', filename=u.avatar) }}" alt="Avatar" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;">
+                                {% else %}
+                                <div class="avatar" style="width:36px;height:36px;font-size:.8rem;">{{ u.first_name[0] if u.first_name else u.username[0] }}{{ u.last_name[0] if u.last_name else '' }}</div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <h6 class="mb-1">{{ u.get_full_name() }} <small class="text-muted">@{{ u.username }}</small></h6>
+                                {% if u.location %}<small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ u.location }}</small>{% endif %}
+                                {% if u.bio %}<div class="small text-muted">{{ u.bio[:140] }}{% if u.bio|length > 140 %}...{% endif %}</div>{% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ url_for('auth.public_profile', username=u.username) }}" class="btn btn-sm btn-outline-primary">View Profile</a>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
         {% endif %}

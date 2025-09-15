@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, CommunityPost, Comment, ChatMessage, FileSubmission, VideoCall, PostLike, ChatRoom
+from models import db, CommunityPost, Comment, ChatMessage, FileSubmission, VideoCall, PostLike, ChatRoom, CommentLike
 from forms import CommunityPostForm, CommentForm, FileSubmissionForm
 from werkzeug.utils import secure_filename
 import os
@@ -55,19 +55,26 @@ def post_detail(id):
     comments = Comment.query.filter_by(post_id=id, parent_id=None).order_by(Comment.created_at.asc()).all()
     
     comment_form = CommentForm()
-    
+    # Determine if current user liked this post
+    liked_by_me = False
+    if current_user.is_authenticated:
+        liked_by_me = PostLike.query.filter_by(user_id=current_user.id, post_id=post.id).first() is not None
+
     return render_template('community/post_detail.html',
                          post=post,
                          comments=comments,
-                         comment_form=comment_form)
+                         comment_form=comment_form,
+                         liked_by_me=liked_by_me)
 
 @community_bp.route('/create_post', methods=['GET', 'POST'])
 @login_required
 def create_post():
     form = CommunityPostForm()
     if form.validate_on_submit():
+        # Auto-generate title if blank (first 60 chars of content)
+        auto_title = (form.content.data or '').strip().split('\n')[0][:60]
         post = CommunityPost(
-            title=form.title.data,
+            title=(form.title.data.strip() if form.title.data else auto_title) or 'Untitled',
             content=form.content.data,
             category=form.category.data,
             tags=form.tags.data,
@@ -116,6 +123,23 @@ def add_comment(id):
         flash('Error adding comment. Please try again.', 'error')
     
     return redirect(url_for('community.post_detail', id=id))
+
+@community_bp.route('/comment/<int:comment_id>/like', methods=['POST'])
+@login_required
+def like_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    existing = CommentLike.query.filter_by(user_id=current_user.id, comment_id=comment.id).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        liked = False
+    else:
+        db.session.add(CommentLike(user_id=current_user.id, comment_id=comment.id))
+        db.session.commit()
+        liked = True
+    # Return new like count
+    likes_count = CommentLike.query.filter_by(comment_id=comment.id).count()
+    return jsonify({'likes': likes_count, 'liked': liked})
 
 @community_bp.route('/post/<int:id>/like', methods=['POST'])
 @login_required

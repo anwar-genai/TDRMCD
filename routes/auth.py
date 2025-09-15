@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, User
+from models import db, User, CommunityPost
+from sqlalchemy import desc
 from forms import LoginForm, RegistrationForm, EditProfileForm
 from datetime import datetime
 from urllib.parse import urlparse as url_parse
@@ -78,6 +79,12 @@ def logout():
 def profile():
     return render_template('auth/profile.html', user=current_user)
 
+@auth_bp.route('/u/<string:username>')
+def public_profile(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    posts = CommunityPost.query.filter_by(author_id=user.id).order_by(desc(CommunityPost.created_at)).limit(10).all()
+    return render_template('auth/public_profile.html', user=user, posts=posts)
+
 @auth_bp.route('/edit_profile', methods=['GET', 'POST'])
 @login_required
 def edit_profile():
@@ -87,6 +94,19 @@ def edit_profile():
         current_user.last_name = form.last_name.data
         current_user.location = form.location.data
         current_user.bio = form.bio.data
+        # Handle avatar upload
+        if form.avatar.data:
+            from werkzeug.utils import secure_filename
+            import os, uuid
+            filename = secure_filename(form.avatar.data.filename)
+            if filename:
+                file_ext = filename.rsplit('.', 1)[-1].lower()
+                unique_filename = f"{uuid.uuid4()}.{file_ext}"
+                avatar_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'avatars')
+                os.makedirs(avatar_dir, exist_ok=True)
+                path = os.path.join(avatar_dir, unique_filename)
+                form.avatar.data.save(path)
+                current_user.avatar = unique_filename
         
         db.session.commit()
         flash('Your profile has been updated successfully.', 'success')

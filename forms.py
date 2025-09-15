@@ -51,6 +51,10 @@ class EditProfileForm(FlaskForm):
     last_name = StringField('Last Name', validators=[DataRequired(), Length(min=1, max=50)])
     location = StringField('Location', validators=[Optional(), Length(max=100)])
     bio = TextAreaField('Bio', validators=[Optional(), Length(max=500)])
+    avatar = FileField('Profile Picture', validators=[
+        Optional(),
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Images only!')
+    ])
 
 class ResourceForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(min=5, max=200)])
@@ -84,7 +88,7 @@ class ResourceForm(FlaskForm):
     ], description='Please provide a valid reference or source for your supporting document (required if file is uploaded)')
 
 class CommunityPostForm(FlaskForm):
-    title = StringField('Title', validators=[DataRequired(), Length(min=5, max=200)])
+    title = StringField('Title', validators=[Optional(), Length(min=0, max=200)])
     content = TextAreaField('Content', validators=[DataRequired(), Length(min=10, max=5000)])
     category = SelectField('Category', validators=[DataRequired()], choices=[
         ('discussion', 'Discussion'),

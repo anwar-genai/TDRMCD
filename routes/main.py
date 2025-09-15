@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from models import db, Resource, CommunityPost, Campaign, Notification
+from models import db, Resource, CommunityPost, Campaign, Notification, User
 from sqlalchemy import or_, desc
 
 main_bp = Blueprint('main', __name__)
@@ -92,9 +92,21 @@ def search():
         )
     ).limit(10).all()
     
+    # Search in users
+    users = User.query.filter(
+        or_(
+            User.username.contains(query),
+            User.first_name.contains(query),
+            User.last_name.contains(query),
+            User.location.contains(query),
+            User.bio.contains(query)
+        )
+    ).limit(10).all()
+    
     return render_template('main/search.html',
                          resources=resources,
                          posts=posts,
+                         users=users,
                          query=query,
                          category=category)
 

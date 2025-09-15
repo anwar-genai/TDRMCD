@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}My Profile{% endblock %}
+{% block title %}{{ user.get_full_name() }} - Profile{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -13,12 +13,12 @@
                             {% if user.avatar and user.avatar != 'default.jpg' %}
                             <img src="{{ url_for('serve_uploaded_file', subdir='avatars', filename=user.avatar) }}" alt="Avatar" class="rounded-circle" style="width:72px;height:72px;object-fit:cover;">
                             {% else %}
-                            <div class="avatar" style="width:72px;height:72px;font-size:1.25rem;">{{ user.first_name[0] }}{{ user.last_name[0] }}</div>
+                            <div class="avatar" style="width:72px;height:72px;font-size:1.25rem;">{{ user.first_name[0] if user.first_name else user.username[0] }}{{ user.last_name[0] if user.last_name else '' }}</div>
                             {% endif %}
                         </div>
                         <div>
                             <h3 class="mb-0">{{ user.get_full_name() }}</h3>
-                            <div class="text-muted">@{{ user.username }} • {{ user.email }}</div>
+                            <div class="text-muted">@{{ user.username }}</div>
                         </div>
                     </div>
 
@@ -47,13 +47,33 @@
                         </div>
                     </div>
 
+                    {% if current_user.is_authenticated and current_user.id == user.id %}
                     <div class="mt-4 d-flex gap-2">
                         <a class="btn btn-primary" href="{{ url_for('auth.edit_profile') }}"><i class="fas fa-edit me-1"></i>Edit Profile</a>
-                        <a class="btn btn-outline-primary" href="{{ url_for('auth.public_profile', username=user.username) }}">View public profile</a>
                         <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">Dashboard</a>
                     </div>
+                    {% endif %}
                 </div>
             </div>
+            {% if posts %}
+            <div class="card shadow-sm mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-comments me-2"></i>Recent Posts</h6>
+                    <a class="small" href="{{ url_for('community.index') }}?author={{ user.username }}">See all posts by {{ user.first_name or user.username }}</a>
+                </div>
+                <div class="card-body">
+                    {% for p in posts %}
+                    <div class="mb-3">
+                        <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=p.id) }}">
+                            <strong>{{ p.title }}</strong>
+                        </a>
+                        <div class="text-muted small">{{ p.created_at.strftime('%b %d, %Y') }} • {{ p.category.title() }}</div>
+                        <div class="small text-muted">{{ p.content[:120] }}{% if p.content|length > 120 %}...{% endif %}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
