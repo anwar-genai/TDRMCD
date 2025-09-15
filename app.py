@@ -162,23 +162,39 @@ def on_webrtc_offer(data):
     else:
         emit('call_event', payload, room=room_id, include_self=False)
 
-# Serve uploaded files (e.g., submissions) safely
+"""Serve uploaded files with appropriate access control.
+
+Public: avatars, resources, posts, campaigns
+Protected: submissions (require login)
+"""
 @app.route('/uploads/<path:subdir>/<path:filename>')
-@login_required
 def serve_uploaded_file(subdir, filename):
+    public_subdirs = {"avatars", "resources", "posts", "campaigns"}
+    protected_subdirs = {"submissions"}
+
+    if subdir not in public_subdirs | protected_subdirs:
+        abort(404)
+
+    # Require authentication for protected areas
+    if subdir in protected_subdirs and not current_user.is_authenticated:
+        # 401 so client can redirect to login as needed
+        abort(401)
+
     uploads_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
     directory = os.path.join(uploads_root, subdir)
-    
+
     # Security check - ensure the path is within uploads directory
     if not os.path.isdir(directory) or not os.path.commonpath([uploads_root, directory]) == uploads_root:
         abort(404)
-    
+
     file_path = os.path.join(directory, filename)
     if not os.path.exists(file_path):
         abort(404)
-    
+
     try:
-        return send_from_directory(directory, filename, as_attachment=True)
+        # Download attachments only for submissions; display inline for public assets
+        as_attachment = subdir in protected_subdirs
+        return send_from_directory(directory, filename, as_attachment=as_attachment)
     except Exception as e:
         print(f"Error serving file {filename}: {e}")
         abort(404)

@@ -14,8 +14,9 @@
                         <p class="text-muted">Sign in to your TDRMCD account</p>
                     </div>
                     
-                    <form method="POST" action="{{ url_for('auth.login') }}">
+                    <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
                         {{ form.hidden_tag() }}
+                        <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
                         
                         <div class="mb-3">
                             {{ form.username.label(class="form-label") }}

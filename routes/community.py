@@ -267,6 +267,7 @@ def create_chat_room():
     name = request.form.get('room_name', '').strip()
     description = request.form.get('room_description', '').strip()
     room_type = request.form.get('room_type', 'public')
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
     if not name:
         flash('Room name is required', 'error')
         return redirect(url_for('community.chat'))
@@ -274,8 +275,15 @@ def create_chat_room():
     # Ensure unique slug
     existing = ChatRoom.query.filter_by(room_id=slug).first()
     if existing:
-        flash('Room already exists. Redirected to it.', 'info')
-        return redirect(url_for('community.chat_room', room_id=slug))
+        if is_ajax:
+            return jsonify({
+                'exists': True,
+                'room_id': slug,
+                'room_url': url_for('community.chat_room', room_id=slug)
+            })
+        else:
+            flash('Room already exists. Redirected to it.', 'info')
+            return redirect(url_for('community.chat_room', room_id=slug))
     room = ChatRoom(
         room_id=slug,
         name=name,
@@ -285,7 +293,14 @@ def create_chat_room():
     )
     db.session.add(room)
     db.session.commit()
-    return redirect(url_for('community.chat_room', room_id=slug))
+    if is_ajax:
+        return jsonify({
+            'success': True,
+            'room_id': slug,
+            'room_url': url_for('community.chat_room', room_id=slug)
+        })
+    else:
+        return redirect(url_for('community.chat_room', room_id=slug))
 
 @community_bp.route('/chat/<room_id>')
 @login_required

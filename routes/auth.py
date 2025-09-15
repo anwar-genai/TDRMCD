@@ -21,7 +21,8 @@ def login():
             user.last_seen = datetime.utcnow()
             db.session.commit()
             
-            next_page = request.args.get('next')
+            # Preserve intended destination from query string or hidden form field
+            next_page = request.args.get('next') or request.form.get('next')
             if not next_page or url_parse(next_page).netloc != '':
                 next_page = url_for('main.dashboard')
             return redirect(next_page)
