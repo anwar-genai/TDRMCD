@@ -382,7 +382,12 @@ def create_video_call():
         
         room_id = str(uuid.uuid4())
         
-        chat_room = data.get('chat_room') if request.is_json else request.form.get('chat_room')
+        # Link to chat room if provided via query, form, or JSON
+        chat_room = None
+        if request.is_json:
+            chat_room = (data.get('chat_room') or '').strip() if data else None
+        else:
+            chat_room = (request.form.get('chat_room') or request.args.get('room') or '').strip()
         
         video_call = VideoCall(
             room_id=room_id,
@@ -406,7 +411,9 @@ def create_video_call():
             flash('Video call room created successfully!', 'success')
             return redirect(url_for('community.video_call_room', room_id=room_id))
     
-    return render_template('community/create_video_call.html')
+    # GET request: allow prefill chat_room from query param
+    prefill_room = (request.args.get('room') or '').strip()
+    return render_template('community/create_video_call.html', chat_room=prefill_room)
 
 @community_bp.route('/video_call/check/<chat_room>')
 @login_required
@@ -427,6 +434,10 @@ def check_video_call(chat_room):
 @login_required
 def video_call_room(room_id):
     video_call = VideoCall.query.filter_by(room_id=room_id).first_or_404()
+    # Prevent joining ended calls
+    if not video_call.is_active:
+        flash('This video call has ended.', 'warning')
+        return redirect(url_for('community.video_calls'))
     
     # JaaS (Jitsi as a Service) Configuration
     jitsi_app_id = current_app.config.get('JITSI_APP_ID')

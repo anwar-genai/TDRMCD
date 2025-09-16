@@ -11,10 +11,10 @@
         </a>
     </div>
 
-    <div class="row">
+    <div class="row" id="active-calls-grid">
         {% if active_calls %}
             {% for call in active_calls %}
-            <div class="col-lg-4 col-md-6 mb-4">
+            <div class="col-lg-4 col-md-6 mb-4" data-video-room-id="{{ call.room_id }}">
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start">
@@ -51,4 +51,21 @@
 </div>
 {% endblock %}
 
+
+{% block extra_js %}
+<script>
+// Remove ended calls live
+try {
+    if (window.socket) {
+        window.socket.on('video_call_ended', (data) => {
+            if (!data || !data.video_room_id) return;
+            const card = document.querySelector(`[data-video-room-id="${data.video_room_id}"]`);
+            if (card && card.parentNode) {
+                card.parentNode.removeChild(card);
+            }
+        });
+    }
+} catch (e) { console.warn('Socket handler not available:', e); }
+</script>
+{% endblock %}
 

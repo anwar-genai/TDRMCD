@@ -21,6 +21,10 @@
                             <label class="form-label fw-bold">Description</label>
                             <textarea class="form-control" name="description" rows="3"></textarea>
                         </div>
+                        {% if chat_room %}
+                        <input type="hidden" name="chat_room" value="{{ chat_room }}">
+                        <div class="mb-2 small text-muted">Linked to chat room: #{{ chat_room }}</div>
+                        {% endif %}
                         <div class="mb-3">
                             <label class="form-label fw-bold">Max Participants</label>
                             <input class="form-control" type="number" min="2" max="100" name="max_participants" value="10">

@@ -100,7 +100,13 @@ function handleJitsiLoadError() {
     document.querySelector('#jitsi-container').innerHTML = '<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load Jitsi Meet API. Please check your internet connection and refresh the page.</div>';
 }
 const roomId = "{{ video_call.room_id }}";
+const backUrl = "{{ url_for('community.chat_room', room_id=(video_call.chat_room or 'general')) }}";
 const jitsiAppId = "{{ jitsi_app_id|default('') }}";
+const jwtToken = "{{ jwt_token or '' }}";
+const hasJwt = ("{{ 'true' if jwt_token else 'false' }}" === 'true');
+const displayNameVal = "{% if current_user.is_authenticated %}{% if current_user.first_name and current_user.last_name %}{{ current_user.first_name }} {{ current_user.last_name }}{% else %}{{ current_user.username }}{% endif %}{% else %}Guest{% endif %}";
+const emailVal = "{{ current_user.email if current_user.is_authenticated else '' }}";
+const isHost = ("{{ 'true' if video_call.host_id == current_user.id else 'false' }}" === 'true');
 const isJaaS = jitsiAppId && jitsiAppId !== '' && jitsiAppId !== 'your-jaas-app-id-here';
 const domain = isJaaS ? '8x8.vc' : 'meet.jit.si';
 
@@ -111,12 +117,10 @@ const roomName = isJaaS ? `vpaas-magic-cookie-${jitsiAppId}/${roomId}` : `tdrmcd
 const options = {
     roomName: roomName,
     parentNode: document.querySelector('#jitsi-container'),
-    {% if jwt_token %}
-    jwt: "{{ jwt_token }}",
-    {% endif %}
+    jwt: jwtToken || undefined,
     userInfo: {
-        displayName: "{% if current_user.is_authenticated %}{% if current_user.first_name and current_user.last_name %}{{ current_user.first_name }} {{ current_user.last_name }}{% else %}{{ current_user.username }}{% endif %}{% else %}Guest{% endif %}",
-        email: "{{ current_user.email if current_user.is_authenticated else '' }}"
+        displayName: displayNameVal,
+        email: emailVal
     },
     // WebRTC and browser compatibility settings
     onload: function() {
@@ -134,6 +138,8 @@ const options = {
         enableWelcomePage: false,
         enableClosePage: false,
         prejoinPageEnabled: false,
+        disableSelfView: false,
+        disableThirdPartyRequests: false,
         
         // Moderator features
         disableModeratorIndicator: false,
@@ -217,6 +223,8 @@ const options = {
         MOBILE_APP_PROMO: false,
         OPTIMAL_BROWSERS: ['chrome', 'chromium', 'firefox', 'nwjs', 'electron', 'safari'],
         UNSUPPORTED_BROWSERS: []  // Clear unsupported browsers list
+    ,
+        SHOW_SELF_VIEW: true
     }
 };
 let api = null;
@@ -279,10 +287,10 @@ function initJitsi() {
     console.log('Room:', roomName);
     console.log('Domain:', domain);
     console.log('App ID:', jitsiAppId);
-    console.log('Has JWT:', {% if jwt_token %}true{% else %}false{% endif %});
-    {% if jwt_token %}
-    console.log('JWT Token (first 50 chars):', "{{ jwt_token[:50] }}...");
-    {% endif %}
+    console.log('Has JWT:', hasJwt);
+    if (hasJwt) {
+        console.log('JWT Token (first 50 chars):', jwtToken.substring(0, 50) + '...');
+    }
     
     // Check WebRTC support before initializing
     if (!checkWebRTCSupport()) {
@@ -351,9 +359,14 @@ function initJitsi() {
     }
     
     // Connection events
-    api.addListener('videoConferenceLeft', () => {
+    api.addListener('videoConferenceLeft', async () => {
         console.log('👋 Left video conference');
-        window.location.href = "{{ url_for('community.video_calls') }}";
+        try {
+            if (isHost) {
+                await fetch(`/community/video_call/${roomId}/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
+            }
+        } catch (e) { /* ignore */ }
+        window.location.href = backUrl;
     });
 
     api.addListener('videoConferenceJoined', () => {
@@ -362,13 +375,28 @@ function initJitsi() {
         hidePrejoinCancel();
         
         // Set display name after joining
-        api.executeCommand('displayName', '{% if current_user.is_authenticated %}{% if current_user.first_name and current_user.last_name %}{{ current_user.first_name }} {{ current_user.last_name }}{% else %}{{ current_user.username }}{% endif %}{% else %}Guest{% endif %}');
+        api.executeCommand('displayName', displayNameVal);
+        
+        // Ensure self-view appears immediately
+        try {
+            api.executeCommand('toggleTileView');
+            setTimeout(() => api.executeCommand('toggleTileView'), 400);
+        } catch (e) { /* ignore */ }
+        try {
+            api.executeCommand('toggleVideo');
+            setTimeout(() => api.executeCommand('toggleVideo'), 250);
+        } catch (e2) { /* ignore */ }
     });
     
     // Ready event - fired when Jitsi is fully loaded
-    api.addListener('readyToClose', () => {
+    api.addListener('readyToClose', async () => {
         console.log('Jitsi Meet is ready to close');
-        window.location.href = "{{ url_for('community.video_calls') }}";
+        try {
+            if (isHost) {
+                await fetch(`/community/video_call/${roomId}/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
+            }
+        } catch (e) { /* ignore */ }
+        window.location.href = backUrl;
     });
 
     // Handle participant events
@@ -513,6 +541,7 @@ function reallyEndVideoCall() {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('endCallModal'));
             if (modal) modal.hide();
+            try { api?.executeCommand('hangup'); } catch (e) {}
             window.location.href = "{{ url_for('community.video_calls') }}";
         } else {
             btn.disabled = false;
@@ -541,8 +570,32 @@ function hidePrejoinCancel() {
 document.getElementById('prejoinCancelBtn')?.addEventListener('click', () => {
     // Hangup and return
     try { api?.executeCommand('hangup'); } catch (e) {}
-    window.location.href = "{{ url_for('community.video_calls') }}";
+    window.location.href = backUrl;
 });
+
+// Listen for server event that the host ended the call and leave
+try {
+    if (window.socket) {
+        window.socket.on('video_call_ended', (data) => {
+            if (data && data.video_room_id === roomId) {
+                console.log('Call ended by host. Leaving room...');
+                try { api?.executeCommand('hangup'); } catch (e) {}
+                window.location.href = backUrl;
+            }
+        });
+    }
+} catch (e) { console.warn('Socket listener setup failed:', e); }
+
+// If current user is host, auto-end call when closing tab or navigating away
+if (isHost) {
+    window.addEventListener('beforeunload', function() {
+        try {
+            navigator.sendBeacon(`/community/video_call/{{ video_call.room_id }}/end`, new Blob([], { type: 'application/json' }));
+        } catch (e) {
+            // best-effort
+        }
+    });
+}
 </script>
 
 <style>
