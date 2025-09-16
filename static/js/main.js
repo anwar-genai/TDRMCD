@@ -254,8 +254,9 @@ function resolveNotificationUrl(notification) {
 function initializeChat() {
     if (!socket) return;
 
+    // If a page-specific chat manager exists, skip global bindings to avoid duplicates
     const chatContainer = document.querySelector('.chat-container');
-    if (!chatContainer) return;
+    if (!chatContainer || chatContainer.getAttribute('data-chat-managed') === '1') return;
 
     const messagesContainer = document.querySelector('.chat-messages');
     const messageForm = document.querySelector('.message-form');

@@ -78,7 +78,7 @@
 
         <!-- Main Chat Area -->
         <div class="col-lg-9 col-md-8">
-            <div class="card shadow-sm chat-container">
+            <div class="card shadow-sm chat-container" data-chat-managed="1">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0">
@@ -260,14 +260,13 @@
 {% block extra_js %}
 <script>
 let currentRoom = null;
-let socket = null;
 
 // Initialize socket when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Initializing main chat');
     
-    // Initialize socket connection
-    socket = io();
+    // Initialize or reuse socket connection
+    socket = window.socket || io();
     window.socket = socket;
     
     // Connection events
@@ -295,67 +294,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     }
 
-    // Handle Create Room form
+    // Handle Create Room form (always AJAX on this page to stay in-panel)
     const createForm = document.getElementById('create-room-form');
     if (createForm) {
         createForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            const isDesktop = window.matchMedia('(min-width: 992px)').matches;
             const name = createForm.querySelector('input[name="room_name"]').value.trim();
             const description = createForm.querySelector('textarea[name="room_description"]').value.trim();
             const room_type = createForm.querySelector('select[name="room_type"]').value;
             if (!name) return;
-            if (isDesktop) {
-                // Create via AJAX then hydrate UI without full nav
-                fetch(createForm.getAttribute('action') || '{{ url_for('community.create_chat_room') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    body: new URLSearchParams({ room_name: name, room_description: description, room_type })
-                }).then(res => res.json()).then(data => {
-                    if (data && (data.success || data.exists)) {
-                        const roomId = data.room_id;
-                        const roomName = name;
-                        // Add to sidebar if not present
-                        const anchor = document.getElementById('custom-rooms-anchor');
-                        if (anchor && !document.querySelector(`.room-link[data-room-id="${CSS.escape(roomId)}"]`)) {
-                            const a = document.createElement('a');
-                            a.href = data.room_url;
-                            a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center room-link';
-                            a.setAttribute('data-room-id', roomId);
-                            a.setAttribute('data-room-name', roomName);
-                            a.innerHTML = `<div><i class=\"fas fa-hashtag me-2 text-muted\"></i>${escapeHtml(roomName)}</div><span class=\"badge bg-primary rounded-pill room-unread-badge d-none\" id=\"room-${roomId}-count\" title=\"Unread messages\">0</span>`;
-                            a.addEventListener('click', function(ev) {
-                                const isDesktop2 = window.matchMedia('(min-width: 992px)').matches;
-                                if (isDesktop2) {
-                                    ev.preventDefault();
-                                    if (currentRoom) socket.emit('leave_chat', {room: currentRoom});
-                                    joinRoom(roomId, roomName);
-                                    if (window.history && window.history.pushState) {
-                                        window.history.pushState({ roomId, roomName }, '', data.room_url);
-                                    }
-                                }
-                            });
-                            anchor.parentElement.insertBefore(a, anchor);
-                        }
-                        // Close modal and join
-                        bootstrap.Modal.getInstance(document.getElementById('createRoomModal')).hide();
-                        if (currentRoom) socket.emit('leave_chat', {room: currentRoom});
-                        joinRoom(roomId, roomName);
-                        if (window.history && window.history.pushState) {
-                            window.history.pushState({ roomId, roomName }, '', data.room_url);
-                        }
+            // Create via AJAX then hydrate UI without full nav
+            fetch(createForm.getAttribute('action') || '{{ url_for('community.create_chat_room') }}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({ room_name: name, room_description: description, room_type })
+            }).then(res => res.json()).then(data => {
+                if (data && (data.success || data.exists)) {
+                    const roomId = data.room_id;
+                    const roomName = name;
+                    // Add to sidebar if not present
+                    const anchor = document.getElementById('custom-rooms-anchor');
+                    if (anchor && !document.querySelector(`.room-link[data-room-id="${CSS.escape(roomId)}"]`)) {
+                        const a = document.createElement('a');
+                        a.href = data.room_url;
+                        a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center room-link';
+                        a.setAttribute('data-room-id', roomId);
+                        a.setAttribute('data-room-name', roomName);
+                        a.innerHTML = `<div><i class=\"fas fa-hashtag me-2 text-muted\"></i>${escapeHtml(roomName)}</div><span class=\"badge bg-primary rounded-pill room-unread-badge d-none\" id=\"room-${roomId}-count\" title=\"Unread messages\">0</span>`;
+                        a.setAttribute('data-href', data.room_url);
+                        a.setAttribute('href', '#');
+                        a.setAttribute('role', 'button');
+                        anchor.parentElement.insertBefore(a, anchor);
                     }
-                }).catch(() => {
-                    // Fallback: normal submit navigates
-                    createForm.submit();
-                });
-            } else {
-                // Mobile: allow default server redirect to dedicated page
+                    // Close modal and join
+                    bootstrap.Modal.getInstance(document.getElementById('createRoomModal')).hide();
+                    if (currentRoom) socket.emit('leave_chat', {room: currentRoom});
+                    joinRoom(roomId, roomName);
+                    if (window.history && window.history.pushState) {
+                        window.history.pushState({ roomId, roomName }, '', data.room_url);
+                    }
+                }
+            }).catch(() => {
+                // Fallback: normal submit navigates
                 createForm.submit();
-            }
+            });
         });
     }
 
@@ -377,6 +362,19 @@ document.addEventListener('DOMContentLoaded', function() {
         joinRoom(roomId, roomName);
     }
 
+    // Convert room anchors to non-navigating controls (always handle in-page)
+    function prepareRoomLinks() {
+        document.querySelectorAll('#rooms-list a.room-link').forEach(a => {
+            const originalHref = a.getAttribute('data-href') || a.getAttribute('href');
+            if (!originalHref) return;
+            a.setAttribute('data-href', originalHref);
+            a.setAttribute('href', '#');
+            a.setAttribute('role', 'button');
+        });
+    }
+
+    prepareRoomLinks();
+
     // Intercept room link clicks via event delegation to stay in-page and update side panel
     const roomsListEl = document.getElementById('rooms-list');
     if (roomsListEl) {
@@ -391,12 +389,33 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             if (currentRoom) socket.emit('leave_chat', {room: currentRoom});
             joinRoom(roomId, roomName);
-            const targetUrl = link.getAttribute('href');
+            const targetUrl = link.getAttribute('data-href') || link.getAttribute('href');
             if (targetUrl && window.history && window.history.pushState) {
                 window.history.pushState({ roomId, roomName }, '', targetUrl);
             }
-        });
+        }, true); // capture phase
     }
+
+    // Intercept generic invite links to /community/chat/<room> when already on chat page (in-place join)
+    document.addEventListener('click', function(e) {
+        const a = e.target.closest && e.target.closest('a[href]');
+        if (!a) return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+        const href = a.getAttribute('href') || '';
+        const here = window.location.pathname;
+        const match = href.match(/^\/community\/chat\/([^\s?#]+)/);
+        if (match && (here === '/community/chat' || here.endsWith('/community/chat/'))) {
+            e.preventDefault();
+            const roomId = decodeURIComponent(match[1]);
+            const link = document.querySelector(`.room-link[data-room-id="${(window.CSS && CSS.escape) ? CSS.escape(roomId) : roomId}"]`);
+            const roomName = link ? (link.getAttribute('data-room-name') || roomId) : roomId;
+            if (currentRoom) socket.emit('leave_chat', {room: currentRoom});
+            joinRoom(roomId, roomName);
+            if (window.history && window.history.pushState) {
+                window.history.pushState({ roomId, roomName }, '', href);
+            }
+        }
+    }, true);
 
     // Handle back/forward navigation to update UI without full reload when possible
     window.addEventListener('popstate', function(event) {
@@ -702,3 +721,4 @@ function joinActiveCall() {
 }
 </script>
 {% endblock %}
+
