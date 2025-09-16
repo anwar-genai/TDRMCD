@@ -305,13 +305,16 @@ def create_chat_room():
 @community_bp.route('/chat/<room_id>')
 @login_required
 def chat_room(room_id):
-    # Get recent messages for the room
-    messages = ChatMessage.query.filter_by(room=room_id).order_by(ChatMessage.timestamp.desc()).limit(50).all()
-    messages.reverse()  # Show oldest first
-    
-    return render_template('community/chat_room.html',
-                         room_id=room_id,
-                         messages=messages)
+    # Serve the same two-column chat template so refreshes and invites hydrate in-place
+    default_rooms = [
+        {'id': 'general', 'name': 'General Discussion'},
+        {'id': 'resources', 'name': 'Resource Discussion'},
+        {'id': 'help', 'name': 'Help & Support'},
+        {'id': 'announcements', 'name': 'Announcements'}
+    ]
+    db_rooms = ChatRoom.query.order_by(ChatRoom.created_at.desc()).all()
+    # The chat template will auto-join based on URL path
+    return render_template('community/chat.html', rooms=default_rooms, db_rooms=db_rooms)
 
 @community_bp.route('/chat/<room_id>/messages')
 @login_required

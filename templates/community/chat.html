@@ -403,16 +403,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
         const href = a.getAttribute('href') || '';
         const here = window.location.pathname;
-        const match = href.match(/^\/community\/chat\/([^\s?#]+)/);
-        if (match && (here === '/community/chat' || here.endsWith('/community/chat/'))) {
+        let url;
+        try { url = new URL(href, window.location.origin); } catch (_) { url = null; }
+        if (!url) return;
+        const onChatHome = (here === '/community/chat' || here.endsWith('/community/chat/'));
+        const isSameOrigin = (url.origin === window.location.origin);
+        const isChatInvite = url.pathname.startsWith('/community/chat/');
+        if (onChatHome && isSameOrigin && isChatInvite) {
             e.preventDefault();
-            const roomId = decodeURIComponent(match[1]);
+            const roomId = decodeURIComponent(url.pathname.replace('/community/chat/', ''));
             const link = document.querySelector(`.room-link[data-room-id="${(window.CSS && CSS.escape) ? CSS.escape(roomId) : roomId}"]`);
             const roomName = link ? (link.getAttribute('data-room-name') || roomId) : roomId;
             if (currentRoom) socket.emit('leave_chat', {room: currentRoom});
             joinRoom(roomId, roomName);
             if (window.history && window.history.pushState) {
-                window.history.pushState({ roomId, roomName }, '', href);
+                const target = url.pathname + url.search + url.hash;
+                window.history.pushState({ roomId, roomName }, '', target);
             }
         }
     }, true);
