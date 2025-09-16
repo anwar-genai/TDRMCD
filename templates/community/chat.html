@@ -91,7 +91,7 @@
                         <div class="connection-status badge bg-light text-dark me-2">
                             <i class="fas fa-circle me-1 text-warning"></i>Connecting...
                         </div>
-                        <button class="btn btn-light btn-sm" onclick="toggleVideoCall()" title="Start Video Call">
+                        <button class="btn btn-light btn-sm" onclick="startInstantCall()" title="Start Video Call">
                             <i class="fas fa-video"></i>
                         </button>
                         <button class="btn btn-light btn-sm" onclick="shareScreen()" title="Share Screen">
@@ -480,6 +480,14 @@ function setupMainChat() {
         addRoomToSidebar(data.room);
     });
     
+    // Live update active call badge for this room
+    socket.on('video_call_available', function(data) {
+        updateActiveCallBadge(currentRoom);
+    });
+    socket.on('video_call_ended', function(data) {
+        updateActiveCallBadge(currentRoom);
+    });
+    
     // Rejoin current room if we were in one
     if (currentRoom) {
         socket.emit('join_chat', {room: currentRoom});
@@ -612,12 +620,19 @@ function updateOnlineUsers() {
     console.log('Updating online users list');
 }
 
-function toggleVideoCall() {
-    if (currentRoom) {
-        window.open(`/community/video_call/create?room=${currentRoom}`, '_blank');
-    } else {
-        alert('Please join a chat room first');
-    }
+function startInstantCall() {
+    if (!currentRoom) { alert('Please join a chat room first'); return; }
+    // If an active call exists, just join it
+    fetch(`/community/video_call/check/${currentRoom}`).then(r=>r.json()).then(data => {
+        if (data && data.exists && data.room_url) {
+            window.open(data.room_url, '_blank');
+            return;
+        }
+        // Otherwise, create instantly and join
+        window.open(`/community/video_call/create?room=${encodeURIComponent(currentRoom)}`, '_blank');
+    }).catch(() => {
+        window.open(`/community/video_call/create?room=${encodeURIComponent(currentRoom)}`, '_blank');
+    });
 }
 
 function shareScreen() {
@@ -664,10 +679,23 @@ function escapeHtml(text) {
 
 // -------- Right-side panel helpers --------
 function copyInviteLink() {
-    const url = window.location.href.includes('/community/chat/') ? window.location.href : `${window.location.origin}/community/chat/${currentRoom || 'general'}`;
-    navigator.clipboard.writeText(url).then(() => {
-        displaySystemMessage('Invite link copied');
-    }).catch(() => {});
+    const fallback = window.location.href.includes('/community/chat/') ? window.location.href : `${window.location.origin}/community/chat/${currentRoom || 'general'}`;
+    if (!currentRoom) {
+        navigator.clipboard.writeText(fallback).then(() => displaySystemMessage('Invite link copied')).catch(() => {});
+        return;
+    }
+    // Prefer active call link if available
+    fetch(`/community/video_call/check/${currentRoom}`)
+        .then(r => r.json())
+        .then(data => {
+            const link = (data && data.exists && data.room_url) ? data.room_url : fallback;
+            navigator.clipboard.writeText(link).then(() => {
+                displaySystemMessage('Invite link copied');
+            }).catch(() => {});
+        })
+        .catch(() => {
+            navigator.clipboard.writeText(fallback).then(() => displaySystemMessage('Invite link copied')).catch(() => {});
+        });
 }
 
 function renderParticipants(list) {

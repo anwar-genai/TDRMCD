@@ -388,6 +388,13 @@ def create_video_call():
             chat_room = (data.get('chat_room') or '').strip() if data else None
         else:
             chat_room = (request.form.get('chat_room') or request.args.get('room') or '').strip()
+
+        # If no title provided (instant call UX), auto-generate a friendly one
+        if not title:
+            room_display = chat_room or 'General'
+            title = f"Call in #{room_display}"
+        if description is None:
+            description = ''
         
         video_call = VideoCall(
             room_id=room_id,
@@ -408,11 +415,28 @@ def create_video_call():
                 'room_url': url_for('community.video_call_room', room_id=room_id)
             })
         else:
-            flash('Video call room created successfully!', 'success')
             return redirect(url_for('community.video_call_room', room_id=room_id))
     
-    # GET request: allow prefill chat_room from query param
+    # GET request: if coming from chat with ?room=, create instantly and redirect
     prefill_room = (request.args.get('room') or '').strip()
+    if prefill_room:
+        # Prevent multiple active calls per room
+        existing = VideoCall.query.filter_by(chat_room=prefill_room, is_active=True).first()
+        if existing:
+            return redirect(url_for('community.video_call_room', room_id=existing.room_id))
+        # Create instant
+        room_id = str(uuid.uuid4())
+        video_call = VideoCall(
+            room_id=room_id,
+            title=f"Call in #{prefill_room}",
+            description='',
+            host_id=current_user.id,
+            chat_room=prefill_room,
+            max_participants=10
+        )
+        db.session.add(video_call)
+        db.session.commit()
+        return redirect(url_for('community.video_call_room', room_id=room_id))
     return render_template('community/create_video_call.html', chat_room=prefill_room)
 
 @community_bp.route('/video_call/check/<chat_room>')
@@ -437,6 +461,8 @@ def video_call_room(room_id):
     # Prevent joining ended calls
     if not video_call.is_active:
         flash('This video call has ended.', 'warning')
+        if video_call.chat_room:
+            return redirect(url_for('community.chat_room', room_id=video_call.chat_room))
         return redirect(url_for('community.video_calls'))
     
     # JaaS (Jitsi as a Service) Configuration
@@ -497,7 +523,16 @@ def video_call_room(room_id):
                         'transcription': False,
                         'outbound-call': False,
                         'sip-inbound-call': False,
-                        'sip-outbound-call': False
+                        'sip-outbound-call': False,
+                        'whiteboard': True,
+                        'jaas-subscription': True,
+                        'outbound-call-v2': True,
+                        'room-lock': True,
+                        'lobby': False,
+                        'moderation': True,
+                        'virtual-background': True,
+                        'video-sharing': True,
+                        'tile-view': True
                     }
                 }
             }

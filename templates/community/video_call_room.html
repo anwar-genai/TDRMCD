@@ -6,10 +6,10 @@
 <div class="container py-4">
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <div class="card">
+            <div class="card" style="position: sticky; top: 76px; z-index: 1;">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-video me-2"></i>{{ video_call.title }}</h5>
-                    <a class="btn btn-outline-secondary" href="{{ url_for('community.video_calls') }}"><i class="fas fa-arrow-left me-1"></i>Back</a>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('community.chat_room', room_id=(video_call.chat_room or 'general')) }}"><i class="fas fa-arrow-left me-1"></i>Back</a>
                 </div>
                 <div class="card-body p-0">
                     <!-- Custom Control Panel -->
@@ -42,7 +42,7 @@
                         </div>
                     </div>
                     <!-- Jitsi Container -->
-                    <div id="jitsi-container" style="height: 500px; width: 100%;"></div>
+                    <div id="jitsi-container" style="height: 500px; width: 100%; position: sticky; top: 124px;"></div>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
                     <div class="text-muted small">Room ID: {{ video_call.room_id }}</div>
@@ -229,6 +229,7 @@ const options = {
 };
 let api = null;
 let isVirtualBackgroundEnabled = false;
+let isEnding = false;
 
 // WebRTC support detection
 function checkWebRTCSupport() {
@@ -361,12 +362,9 @@ function initJitsi() {
     // Connection events
     api.addListener('videoConferenceLeft', async () => {
         console.log('👋 Left video conference');
-        try {
-            if (isHost) {
-                await fetch(`/community/video_call/${roomId}/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
-            }
-        } catch (e) { /* ignore */ }
-        window.location.href = backUrl;
+        if (!isEnding) {
+            window.location.href = backUrl;
+        }
     });
 
     api.addListener('videoConferenceJoined', () => {
@@ -388,16 +386,7 @@ function initJitsi() {
         } catch (e2) { /* ignore */ }
     });
     
-    // Ready event - fired when Jitsi is fully loaded
-    api.addListener('readyToClose', async () => {
-        console.log('Jitsi Meet is ready to close');
-        try {
-            if (isHost) {
-                await fetch(`/community/video_call/${roomId}/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
-            }
-        } catch (e) { /* ignore */ }
-        window.location.href = backUrl;
-    });
+    // Ready to close fires when the user clicks hangup; we already handle via videoConferenceLeft
 
     // Handle participant events
     api.addListener('participantJoined', (participant) => {
@@ -531,28 +520,39 @@ function reallyEndVideoCall() {
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Ending...';
+    isEnding = true;
     
     fetch(`/community/video_call/{{ video_call.room_id }}/end`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        cache: 'no-store'
     })
-    .then(r => r.json())
+    .then(async r => {
+        const ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) return { success: false };
+        try { return await r.json(); } catch { return { success: false }; }
+    })
     .then(data => {
         if (data.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('endCallModal'));
             if (modal) modal.hide();
             try { api?.executeCommand('hangup'); } catch (e) {}
-            window.location.href = "{{ url_for('community.video_calls') }}";
+            window.location.href = backUrl;
         } else {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
-            console.error('Failed to end call:', data.message);
+            isEnding = false;
+            console.error('Failed to end call:', data && data.message);
+            alert('Could not end the call. Please try again.');
         }
     })
     .catch(err => {
         btn.disabled = false;
         btn.innerHTML = originalHtml;
+        isEnding = false;
         console.error('Error ending video call:', err);
+        alert('Network error while ending the call.');
     });
 }
 
@@ -586,16 +586,7 @@ try {
     }
 } catch (e) { console.warn('Socket listener setup failed:', e); }
 
-// If current user is host, auto-end call when closing tab or navigating away
-if (isHost) {
-    window.addEventListener('beforeunload', function() {
-        try {
-            navigator.sendBeacon(`/community/video_call/{{ video_call.room_id }}/end`, new Blob([], { type: 'application/json' }));
-        } catch (e) {
-            // best-effort
-        }
-    });
-}
+// Do not auto-end on refresh or tab close; only explicit End Call ends the room
 </script>
 
 <style>

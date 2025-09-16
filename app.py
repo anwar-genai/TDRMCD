@@ -7,6 +7,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from datetime import timedelta
 import os
 from config import Config
 
@@ -25,6 +26,50 @@ socketio = SocketIO(app, cors_allowed_origins="*", manage_session=True, logger=T
 
 # Import models after db initialization
 from models import User, Resource, CommunityPost, ChatMessage, FileSubmission, Notification, Campaign, VideoCall, ChatRoom
+# --- Background cleanup for stale/ended video calls ---
+def cleanup_stale_video_calls():
+    with app.app_context():
+        try:
+            threshold_minutes = int(os.environ.get('VIDEO_CALL_MAX_IDLE_MINUTES', '15'))
+            cutoff = datetime.utcnow() - timedelta(minutes=threshold_minutes)
+            stale_calls = VideoCall.query.filter(
+                VideoCall.is_active == True,
+                VideoCall.created_at < cutoff
+            ).all()
+            count = 0
+            for call in stale_calls:
+                call.is_active = False
+                call.ended_at = datetime.utcnow()
+                count += 1
+            if count:
+                db.session.commit()
+                # Notify rooms for visibility
+                for call in stale_calls:
+                    if call.chat_room:
+                        socketio.emit('video_call_ended', {
+                            'message': f'Video call "{call.title}" has ended (inactive)',
+                            'video_room_id': call.room_id,
+                            'chat_room': call.chat_room
+                        }, room=call.chat_room)
+        except Exception as e:
+            print(f"Video call cleanup error: {e}")
+
+
+def start_cleanup_scheduler():
+    import threading, time
+    interval_seconds = int(os.environ.get('VIDEO_CALL_CLEANUP_INTERVAL_SEC', '120'))
+
+    def loop():
+        while True:
+            try:
+                cleanup_stale_video_calls()
+            except Exception as e:
+                print(f"Cleanup loop error: {e}")
+            time.sleep(interval_seconds)
+
+    thread = threading.Thread(target=loop, daemon=True)
+    thread.start()
+
 
 # Import blueprints
 from routes.auth import auth_bp
@@ -244,6 +289,19 @@ def on_video_call_started(data):
         'message': f'{started_by} started a video call'
     }, room=room)
 
+@app.route('/community/video_call/announce/<room_id>')
+def announce_call_http(room_id):
+    # Minimal endpoint to trigger an announcement (used only if needed)
+    call = VideoCall.query.filter_by(room_id=room_id, is_active=True).first()
+    if call and call.chat_room:
+        socketio.emit('video_call_available', {
+            'video_room_id': call.room_id,
+            'video_room_url': url_for('community.video_call_room', room_id=call.room_id),
+            'started_by': (current_user.username if current_user.is_authenticated else 'Someone')
+        }, room=call.chat_room)
+        return jsonify({'ok': True})
+    return jsonify({'ok': False})
+
 
 if __name__ == '__main__':
     # Ensure DB has url column for notifications (SQLite-safe migration)
@@ -257,4 +315,6 @@ if __name__ == '__main__':
                 db.session.commit()
         except Exception as e:
             print(f"Warning: could not ensure notification.url column: {e}")
+    # Start background cleanup thread
+    start_cleanup_scheduler()
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
