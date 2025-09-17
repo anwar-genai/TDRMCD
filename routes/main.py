@@ -129,6 +129,22 @@ def about():
 def contact():
     return render_template('main/contact.html')
 
+@main_bp.route('/help')
+def help_center():
+    return render_template('main/help_center.html')
+
+@main_bp.route('/docs')
+def documentation():
+    return render_template('main/documentation.html')
+
+@main_bp.route('/api')
+def api_page():
+    return render_template('main/api.html')
+
+@main_bp.route('/status')
+def status_page():
+    return render_template('main/status.html')
+
 @main_bp.route('/map')
 def map_view():
     # Get all resources with coordinates

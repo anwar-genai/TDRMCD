@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Status - TDRMCD{% endblock %}
+
+{% block content %}
+<section class="py-5 bg-light">
+    <div class="container">
+        <h1 class="fw-bold mb-3">System Status</h1>
+        <p class="text-muted mb-4">All systems are operational.</p>
+
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="card text-center shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Web App</h6>
+                        <span class="badge bg-success">Operational</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Database</h6>
+                        <span class="badge bg-success">Operational</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Realtime</h6>
+                        <span class="badge bg-success">Operational</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center shadow-sm">
+                    <div class="card-body">
+                        <h6 class="text-muted">Uploads</h6>
+                        <span class="badge bg-success">Operational</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+

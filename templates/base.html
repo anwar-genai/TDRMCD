@@ -197,17 +197,17 @@
                     <ul class="list-unstyled">
                         <li><a href="{{ url_for('main.about') }}" class="text-light-50">About Us</a></li>
                         <li><a href="{{ url_for('main.contact') }}" class="text-light-50">Contact</a></li>
-                        <li><a href="#" class="text-light-50">Privacy Policy</a></li>
-                        <li><a href="#" class="text-light-50">Terms of Service</a></li>
+                        <li><a href="{{ url_for('auth.privacy_policy') }}" class="text-light-50">Privacy Policy</a></li>
+                        <li><a href="{{ url_for('auth.terms_of_service') }}" class="text-light-50">Terms of Service</a></li>
                     </ul>
                 </div>
                 <div class="col-md-2">
                     <h6>Support</h6>
                     <ul class="list-unstyled">
-                        <li><a href="#" class="text-light-50">Help Center</a></li>
-                        <li><a href="#" class="text-light-50">Documentation</a></li>
-                        <li><a href="#" class="text-light-50">API</a></li>
-                        <li><a href="#" class="text-light-50">Status</a></li>
+                        <li><a href="{{ url_for('main.help_center') }}" class="text-light-50">Help Center</a></li>
+                        <li><a href="{{ url_for('main.documentation') }}" class="text-light-50">Documentation</a></li>
+                        <li><a href="{{ url_for('main.api_page') }}" class="text-light-50">API</a></li>
+                        <li><a href="{{ url_for('main.status_page') }}" class="text-light-50">Status</a></li>
                     </ul>
                 </div>
             </div>
