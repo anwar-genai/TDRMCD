@@ -1,352 +1,228 @@
-# TDRMCD - Tribal Districts Resource Management and Community Development
+# TDRMCD — Tribal Districts Resource Management and Community Development
 
-A comprehensive Flask web application for managing and sharing information about natural and cultural resources in the tribal districts of Khyber Pakhtunkhwa (KPK), Pakistan.
+A full‑stack Flask application for managing and sharing information about natural and cultural resources in the tribal districts of Khyber Pakhtunkhwa (KPK), Pakistan. It combines a resource catalog, community collaboration (chat, forums, file sharing), interactive mapping, and authenticated video calls.
 
-## 🌟 Features
+## 🌟 What’s Inside
 
-### 🏛️ Core Features
-- **Resource Database**: Centralized information about minerals, agriculture, wildlife, and cultural heritage
-- **Community Platform**: Real-time chat, video calling, and discussion forums
-- **File Sharing**: Secure file submission system with reference validation
-- **Interactive Mapping**: Live map showing resource locations
-- **Awareness Campaigns**: Educational content about health, education, and sustainability
-- **User Management**: Role-based access control (Users, Researchers, Admins)
+- **Resource Catalog**: Detailed resource profiles with categories, tags, geo locations, and attachments
+- **Community**: Real‑time chat rooms, posts, comments, reactions, and file sharing
+- **Video Calling**: Secure, authenticated meetings via JaaS (Jitsi as a Service)
+- **Mapping**: Interactive map with resource markers and layers
+- **Admin & Analytics**: Admin dashboard, moderation, and basic analytics
 
-### 💬 Community Features
-- **Real-time Chat**: Multiple chat rooms with Socket.IO for instant messaging
-- **Video Calling**: JaaS-powered video conferencing with authentication
-- **Discussion Forums**: Community posts with comments and reactions
-- **File Sharing**: Upload and share documents, images, and research papers
-- **Notifications**: Real-time updates and alerts
+See `OFFERS.md` for optional enhancements and roadmap items across search, GIS, moderation, API, performance, and more.
 
-### 🗺️ Resource Management
-- **Detailed Resource Profiles**: Complete information about local resources
-- **Geographic Mapping**: Interactive maps with resource locations
-- **Search & Filter**: Advanced search capabilities
-- **Category Organization**: Resources organized by type (Minerals, Agriculture, etc.)
-- **Economic Data**: Information about economic value and sustainability
+## 🧠 How It Works (Architecture)
 
-## 🚀 Quick Start
+- **Flask Blueprints**: Feature areas live under `routes/` (`auth.py`, `main.py`, `resources.py`, `community.py`, `admin.py`)
+- **Templates**: Jinja2 templates under `templates/` with a shared `base.html`
+- **Database**: SQLAlchemy models in `models.py`, migrations via Alembic/Flask‑Migrate (see `migrations/`)
+- **Realtime**: Flask‑Socket.IO powers live chat and notifications
+- **Video**: JaaS token signing on the server authorizes users to join video meetings
+- **Static & Uploads**: Static assets in `static/`; user uploads in `static/uploads/` and project‑level `uploads/`
 
-### Prerequisites
-- Python 3.8+
-- pip (Python package manager)
-- Virtual environment (recommended)
+## 🚀 Quick Start (Windows Friendly)
 
-### Installation
+### Option A: Use provided scripts (recommended on Windows)
 
-1. **Clone the repository**
+1. Double‑click `setup.bat` to create a virtual environment and install dependencies
+2. Double‑click `start_app.bat` (or run `start.py`) to launch the app
+3. Open `http://127.0.0.1:5000` in your browser
+
+### Option B: Manual setup
+
+1. Install Python 3.8+ and ensure `python` is on PATH
+2. Create a virtual environment and activate it
    ```bash
-   git clone <repository-url>
-   cd tdrmcd
-   ```
-
-2. **Create and activate virtual environment**
-   ```bash
-   # Windows
    python -m venv venv
    venv\Scripts\activate
-   
-   # Linux/Mac
-   python3 -m venv venv
-   source venv/bin/activate
    ```
-
-3. **Install dependencies**
+3. Install dependencies
    ```bash
    pip install -r requirements.txt
    ```
-
-4. **Set up environment variables**
-   ```bash
-   # Copy the example environment file
-   cp .env.example .env
-   
-   # Edit .env file with your configuration
-   # At minimum, set a secure SECRET_KEY
-   ```
-
-5. **Run the application**
+4. Configure environment (see next section) and run the app
    ```bash
    python run.py
    ```
 
-6. **Access the application**
-   - Open your browser and go to `http://127.0.0.1:5000`
-   - Default admin credentials:
-     - Username: `admin`
-     - Password: `admin123`
-   - **⚠️ Change the admin password immediately after first login!**
+## 🛠️ Configuration
 
-## 🎥 Video Call Setup (JaaS Integration)
+Use the template in `env.template` to create your environment file (e.g., `.env`):
 
-The application supports professional video calling through JaaS (Jitsi as a Service). This provides authenticated, secure video conferences with moderation controls.
+```env
+# Flask Configuration
+SECRET_KEY=change-this-in-production
+DATABASE_URL=sqlite:///tdrmcd.db
 
-### 🔧 JaaS Configuration
+# Mail (Optional)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=true
+MAIL_USERNAME=
+MAIL_PASSWORD=
+MAIL_DEFAULT_SENDER=
 
-1. **Sign up for JaaS**
-   - Visit [JaaS Console](https://jaas.8x8.vc/)
-   - Create a free account
-   - Create a new application
+# JaaS (Jitsi as a Service)
+# Obtain values from your JaaS console
+JITSI_APP_ID=
+JITSI_KEY_ID=
+JITSI_APP_SECRET=
+```
 
-2. **Generate API Key**
-   ```bash
-   # Generate RSA key pair
-   ssh-keygen -t rsa -b 4096 -m PEM -f jaasauth.key
-   
-   # Generate public key in PEM format
-   openssl rsa -in jaasauth.key -pubout -outform PEM -out jaasauth.key.pub
-   ```
+Notes:
+- `JITSI_APP_SECRET` accepts a multi‑line PEM or a single line with `\n`
+- For production, consider PostgreSQL: `DATABASE_URL=postgresql://user:pass@host/dbname`
 
-3. **Upload Public Key**
-   - Go to JaaS Console → API Keys
-   - Upload the **public key** (`jaasauth.key.pub`)
-   - Copy the generated **Key ID** (e.g., `vpaas-magic-cookie-abc123/def456`)
+## 🎥 Video Calls (JaaS)
 
-4. **Configure Environment Variables**
-   
-   Create a `.env` file in the project root with:
-   ```env
-   # Flask Configuration
-   SECRET_KEY=your-secret-key-here
-   DATABASE_URL=sqlite:///tdrmcd.db
-   
-   # JaaS Configuration
-   JITSI_APP_ID=your-app-id-here
-   JITSI_KEY_ID=vpaas-magic-cookie-your-app-id/key-id
-   JITSI_APP_SECRET=-----BEGIN PRIVATE KEY-----
-   your-private-key-content-here
-   -----END PRIVATE KEY-----
-   
-   # Mail Configuration (Optional)
-   MAIL_SERVER=smtp.gmail.com
-   MAIL_PORT=587
-   MAIL_USE_TLS=true
-   MAIL_USERNAME=your-email@example.com
-   MAIL_PASSWORD=your-app-password
-   ```
+The app can generate signed tokens to join authenticated JaaS rooms.
 
-5. **Install Additional Dependencies**
-   ```bash
-   pip install cryptography python-dotenv
-   ```
+High‑level setup:
+1. Create RSA keys and upload your public key in the JaaS Console to get a Key ID
+2. Set `JITSI_APP_ID`, `JITSI_KEY_ID`, and `JITSI_APP_SECRET` in your env
+3. Restart the app and start/join calls from the community pages
 
-6. **Restart Application**
-   ```bash
-   python run.py
-   ```
+Helpful guides: see `JAAS_SETUP.md` and `JAAS_SETUP_CORRECT.md` in the repo.
 
-### ✅ Video Call Features
-
-With JaaS configured, you get:
-- **Authenticated Meetings**: Secure JWT-based authentication
-- **Host Moderation**: Meeting hosts have full control
-- **High-Quality Video**: Professional-grade video conferencing
-- **Virtual Backgrounds**: Built-in background replacement
-- **Screen Sharing**: Share your screen with participants
-- **Chat Integration**: Video calls linked to chat rooms
-- **Recording Support**: Meeting recording capabilities (if enabled)
-
-### 🔍 Troubleshooting Video Calls
-
-- **"Not allowed to join"**: Check that all three JaaS variables are correctly set
-- **Video not loading**: Ensure cryptography library is installed
-- **No moderation controls**: Verify the Key ID format includes the full `vpaas-magic-cookie-` prefix
-- **Connection issues**: Check browser console for JWT token errors
-
-### 📱 Using Video Calls
-
-1. **From Chat Rooms**: Click the video button in any chat room
-2. **Direct Access**: Visit `/community/video_call` to see all active calls
-3. **Create Meetings**: Start new video calls from the community section
-4. **Join Existing**: Click "Join Video Call" when others start meetings
+Troubleshooting:
+- “Not allowed to join”: verify all 3 JaaS variables and key format
+- No controls: ensure the Key ID includes the `vpaas-magic-cookie-...` prefix
+- Crypto errors: install `cryptography` and restart the app
 
 ## 📁 Project Structure
 
 ```
 tdrmcd/
-├── app.py                 # Main Flask application
-├── run.py                 # Application runner with initialization
-├── config.py              # Configuration settings
-├── models.py              # Database models
-├── forms.py               # WTForms for form handling
-├── requirements.txt       # Python dependencies
-├── README.md             # Project documentation
-├── routes/               # Application routes
-│   ├── __init__.py
-│   ├── auth.py           # Authentication routes
-│   ├── main.py           # Main application routes
-│   ├── resources.py      # Resource management routes
-│   ├── community.py      # Community features routes
-│   └── admin.py          # Admin panel routes
-├── templates/            # Jinja2 templates
-│   ├── base.html         # Base template
-│   ├── main/             # Main page templates
-│   ├── auth/             # Authentication templates
-│   ├── resources/        # Resource templates
-│   ├── community/        # Community templates
-│   └── admin/            # Admin panel templates
-├── static/               # Static files
-│   ├── css/              # Stylesheets
-│   ├── js/               # JavaScript files
-│   ├── images/           # Images
-│   └── uploads/          # User uploaded files
-└── migrations/           # Database migrations (auto-generated)
+├── app.py                 # Flask app/bootstrap
+├── run.py                 # App runner
+├── config.py              # Settings & env loading
+├── models.py              # SQLAlchemy models
+├── forms.py               # WTForms
+├── routes/                # Feature blueprints
+│   ├── auth.py
+│   ├── main.py
+│   ├── resources.py
+│   ├── community.py
+│   └── admin.py
+├── templates/             # Jinja templates
+├── static/                # CSS/JS/images and uploads
+├── uploads/               # Project-level uploads (if used)
+├── migrations/            # Alembic migrations
+└── instance/tdrmcd.db     # SQLite database (if created here)
 ```
 
-## 🛠️ Configuration
+## 💡 Using the App
 
-### Environment Variables
+1. Open `http://127.0.0.1:5000`
+2. Register a new account (or log in if seeded users exist)
+3. Explore:
+   - Resources: browse, search, view details, and attachments
+   - Community: chat rooms, posts, comments, and file submissions
+   - Video Calls: start/join meetings from community pages
+4. Admin: visit `/admin` (requires admin role)
 
-Create a `.env` file in the root directory:
-
-```env
-# Flask Configuration
-SECRET_KEY=your-very-secure-secret-key-here
-FLASK_ENV=development
-FLASK_DEBUG=True
-
-# Database
-DATABASE_URL=sqlite:///tdrmcd.db
-
-# Mail Configuration (Optional)
-MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=your-email@gmail.com
-MAIL_PASSWORD=your-app-password
-MAIL_DEFAULT_SENDER=your-email@gmail.com
-```
-
-### Database Configuration
-
-The application uses SQLite by default, which is perfect for development and small deployments. For production, consider using PostgreSQL:
-
-```env
-DATABASE_URL=postgresql://username:password@localhost/tdrmcd
-```
-
-## 👥 User Roles
-
-1. **Regular Users**: Can view resources, participate in community discussions, submit files
-2. **Researchers**: Enhanced access to detailed resource data and analytics
-3. **Administrators**: Full access to manage users, moderate content, and system settings
+Admin account
+- If your database was seeded with a default admin, use those credentials and change the password immediately
+- Otherwise, register a user and promote it to admin via the admin panel or a management script
 
 ## 🔧 Development
 
-### Adding New Features
-
-1. **Database Models**: Add new models in `models.py`
-2. **Routes**: Create new routes in the appropriate blueprint
-3. **Templates**: Add corresponding HTML templates
-4. **Forms**: Create forms in `forms.py` for user input
-5. **Static Files**: Add CSS/JS in the `static/` directory
-
-### Database Migrations
-
+### Database migrations
 ```bash
-# Initialize migrations (first time only)
+# First time only
 flask db init
 
-# Create migration
-flask db migrate -m "Description of changes"
+# Generate migration from model changes
+flask db migrate -m "Describe changes"
 
-# Apply migration
+# Apply migrations
 flask db upgrade
 ```
 
-### Running in Production
+### Running in production
+```bash
+set FLASK_ENV=production
+set FLASK_DEBUG=False
+```
+Use a production server such as:
+```bash
+gunicorn -k eventlet -w 1 --bind 0.0.0.0:5000 app:app
+```
 
-1. **Set environment variables**:
-   ```bash
-   export FLASK_ENV=production
-   export FLASK_DEBUG=False
-   ```
-
-2. **Use a production WSGI server**:
-   ```bash
-   gunicorn -k eventlet -w 1 --bind 0.0.0.0:5000 app:app
-   ```
-
-## 📋 API Endpoints
+## 📋 Common Routes
 
 ### Authentication
-- `POST /auth/login` - User login
-- `POST /auth/register` - User registration
-- `GET /auth/logout` - User logout
+- `POST /auth/login` — Login
+- `POST /auth/register` — Register
+- `GET /auth/logout` — Logout
 
 ### Resources
-- `GET /resources` - List all resources
-- `GET /resources/<id>` - Get resource details
-- `POST /resources/add` - Add new resource
-- `PUT /resources/<id>/edit` - Update resource
+- `GET /resources` — List resources
+- `GET /resources/<id>` — Resource details
+- `POST /resources/add` — Add resource
+- `PUT /resources/<id>/edit` — Edit resource
 
 ### Community
-- `GET /community` - Community forum
-- `POST /community/create_post` - Create new post
-- `GET /community/chat` - Chat interface
-- `POST /community/files/submit` - Submit file
+- `GET /community` — Forum
+- `POST /community/create_post` — Create post
+- `GET /community/chat` — Chat interface
+- `POST /community/files/submit` — Submit file
 
 ### Admin
-- `GET /admin` - Admin dashboard
-- `GET /admin/users` - Manage users
-- `GET /admin/resources` - Manage resources
+- `GET /admin` — Dashboard
+- `GET /admin/users` — Manage users
+- `GET /admin/resources` — Manage resources
 
-## 🔒 Security Features
+## 🔒 Security Checklist
 
-- **User Authentication**: Secure login/logout system
-- **Password Hashing**: Werkzeug password hashing
-- **File Upload Validation**: Secure file handling
-- **CSRF Protection**: Cross-site request forgery protection
-- **Role-based Access**: Different permission levels
-- **Input Validation**: Form validation and sanitization
+- Set a strong `SECRET_KEY`
+- Change any default credentials immediately
+- Enable mail to support password reset and verification
+- Serve behind HTTPS (terminate TLS at a proxy)
+- Keep dependencies updated
 
-## 🎨 UI/UX Features
+## 🧭 Data & Storage Locations
 
-- **Responsive Design**: Works on desktop, tablet, and mobile
-- **Modern Interface**: Bootstrap 5 with custom styling
-- **Real-time Updates**: Socket.IO for live features
-- **Interactive Maps**: Leaflet.js integration
-- **File Drag & Drop**: Intuitive file upload
-- **Dark Mode Support**: Automatic dark mode detection
+- SQLite DB: as configured by `DATABASE_URL` (example: `sqlite:///tdrmcd.db`)
+- Uploads: `static/uploads/*` and project `uploads/*` directories
+
+## 🎨 UI/UX Highlights
+
+- Responsive Bootstrap 5 UI, dark mode support
+- Real‑time updates via Socket.IO
+- Interactive mapping with Leaflet.js
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch (`git checkout -b feature/xyz`)
+3. Commit (`git commit -m "Add xyz"`)
+4. Push (`git push origin feature/xyz`)
 5. Open a Pull Request
 
-## 📄 License
+## 👨‍💻 Team
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- **Rizwan Ullah** (Reg#: 2021-USTB-125660) — rizwanwazir601@gmail.com
+- **Manzor Ahmad** (Reg#: 2021-USTB-125649) — manzorwazir12@gmail.com
+- **Talha** (Reg#: 2021-USTB-125637) — talhawazir02@gmail.com
 
-## 👨‍💻 Development Team
-
-- **Rizwan Ullah** (Reg#: 2021-USTB-125660) - rizwanwazir601@gmail.com
-- **Manzor Ahmad** (Reg#: 2021-USTB-125649) - manzorwazir12@gmail.com  
-- **Talha** (Reg#: 2021-USTB-125637) - talhawazir02@gmail.com
-
-**Supervisor**: M Zahid Khan, Department of Software Engineering, UST Bannu
+Supervisor: M Zahid Khan, Department of Software Engineering, UST Bannu
 
 ## 🆘 Support
 
-For support and questions:
-- Create an issue in the repository
+- Open an issue in the repository
 - Contact the development team
-- Check the documentation in the `/docs` folder
+- See `OFFERS.md` for planned enhancements
 
-## 🎯 Project Goals
+## 🎯 Goals
 
-This platform aims to:
-- Centralize reliable information about local resources
-- Enable informed decision-making on resource use and conservation
-- Facilitate real-time collaboration and knowledge sharing
-- Promote awareness about education, health, and sustainable practices
-- Empower local residents and improve socioeconomic outcomes
-- Create a safe and trusted environment for community interaction
+- Centralize reliable resource information
+- Enable informed conservation and development decisions
+- Facilitate real‑time collaboration and knowledge sharing
+- Promote awareness for education, health, and sustainability
+- Empower local communities and improve socioeconomic outcomes
 
 ---
 
-**Built with ❤️ for the tribal communities of Khyber Pakhtunkhwa**
+Built with ❤️ for the tribal communities of Khyber Pakhtunkhwa
