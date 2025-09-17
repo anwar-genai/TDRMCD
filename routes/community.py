@@ -749,6 +749,18 @@ def files():
                          current_category=category,
                          current_status=status)
 
+@community_bp.route('/files/<int:file_id>')
+def file_detail(file_id):
+    f = FileSubmission.query.get_or_404(file_id)
+    # Visibility: approved files public; otherwise owner or admin only
+    is_owner = current_user.is_authenticated and f.submitter_id == current_user.id
+    is_admin = current_user.is_authenticated and current_user.is_admin()
+    if f.status != 'approved' and not (is_owner or is_admin):
+        flash('This file is not available.', 'warning')
+        return redirect(url_for('community.files'))
+    download_allowed = (f.status == 'approved') or is_owner or is_admin
+    return render_template('community/file_detail.html', file=f, download_allowed=download_allowed)
+
 @community_bp.route('/files/submit', methods=['GET', 'POST'])
 @login_required
 def submit_file():

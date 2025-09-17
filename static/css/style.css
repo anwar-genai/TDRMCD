@@ -508,3 +508,116 @@ body {
         color: #e2e8f0;
     }
 }
+
+/* Sidebar recent files */
+.recent-files-card .list-group-item {
+    border: none;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.recent-files-card .list-group-item:last-child {
+    border-bottom: none;
+}
+
+.recent-files-card .file-title {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.recent-files-card .list-group-item:hover {
+    background: rgba(0, 123, 255, 0.04);
+}
+
+/* Post cards */
+.post-card .post-header {
+    display: flex;
+    justify-content: space-between;
+}
+
+.post-card .post-title {
+    margin-bottom: 0.25rem;
+}
+
+/* Category pill */
+.badge-category {
+    background: linear-gradient(45deg, #dee2e6, #ced4da);
+    color: #495057;
+    border: 1px solid #ced4da;
+}
+
+/* Category-specific badges */
+.badge-category { /* default fallback */
+    border-radius: 999px;
+    padding: 0.25rem 0.6rem;
+    font-weight: 600;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.badge-discussion {
+    background: #e7f1ff;
+    color: #0b57d0;
+    border: 1px solid #cfe1ff;
+}
+
+.badge-question {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffe69c;
+}
+
+.badge-announcement {
+    background: #fde2e2;
+    color: #b21f2d;
+    border: 1px solid #fac3c3;
+}
+
+.badge-news {
+    background: #e6ffed;
+    color: #2e7d32;
+    border: 1px solid #c9f7d9;
+}
+
+/* Files card polish */
+.file-card {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    border: 1px solid #f1f3f5;
+}
+
+.file-card .card-body h6,
+.file-card .file-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-card .file-title-link {
+    display: inline-block;
+    max-width: 100%;
+}
+
+/* Truncation utility */
+.truncate-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Subtle shadow on hover for cards already defined; ensure smooth */
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+}
