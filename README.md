@@ -23,13 +23,21 @@ See `OFFERS.md` for optional enhancements and roadmap items across search, GIS, 
 
 ## 🚀 Quick Start (Windows Friendly)
 
-### Option A: Use provided scripts (recommended on Windows)
+### Option A: One-command setup + run (recommended)
+
+1. Run the guided setup script:
+   ```bash
+   python start.py
+   ```
+   This creates venv, installs dependencies, sets up `.env`, and starts the app automatically.
+
+### Option B: Use provided scripts (Windows)
 
 1. Double‑click `setup.bat` to create a virtual environment and install dependencies
-2. Double‑click `start_app.bat` (or run `start.py`) to launch the app
+2. Double‑click `start_app.bat` to launch the app
 3. Open `http://127.0.0.1:5000` in your browser
 
-### Option B: Manual setup
+### Option C: Manual setup
 
 1. Install Python 3.8+ and ensure `python` is on PATH
 2. Create a virtual environment and activate it
@@ -45,6 +53,8 @@ See `OFFERS.md` for optional enhancements and roadmap items across search, GIS, 
    ```bash
    python run.py
    ```
+
+**Note**: Use `python run.py` (not `python app.py`) for automatic setup of folders, database, and admin user.
 
 ## 🛠️ Configuration
 
@@ -115,16 +125,17 @@ tdrmcd/
 ## 💡 Using the App
 
 1. Open `http://127.0.0.1:5000`
-2. Register a new account (or log in if seeded users exist)
+2. Log in with the default admin account:
+   - Username: `admin`
+   - Password: `admin123`
+   - **⚠️ Change this password immediately after first login!**
 3. Explore:
    - Resources: browse, search, view details, and attachments
    - Community: chat rooms, posts, comments, and file submissions
    - Video Calls: start/join meetings from community pages
-4. Admin: visit `/admin` (requires admin role)
+4. Admin: visit `/admin` for full system management
 
-Admin account
-- If your database was seeded with a default admin, use those credentials and change the password immediately
-- Otherwise, register a user and promote it to admin via the admin panel or a management script
+**Note**: The default admin user is automatically created when you run `python run.py` or `python start.py`.
 
 ## 🔧 Development
 
