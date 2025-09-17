@@ -308,7 +308,13 @@ def chat():
         {'id': 'help', 'name': 'Help & Support'},
         {'id': 'announcements', 'name': 'Announcements'}
     ]
-    db_rooms = ChatRoom.query.order_by(ChatRoom.created_at.desc()).all()
+    # Only show rooms user can see
+    if current_user.is_authenticated and current_user.is_admin():
+        db_rooms = ChatRoom.query.order_by(ChatRoom.created_at.desc()).all()
+    else:
+        db_rooms = ChatRoom.query.filter(
+            (ChatRoom.is_private == False) | (ChatRoom.created_by == (current_user.id if current_user.is_authenticated else -1))
+        ).order_by(ChatRoom.created_at.desc()).all()
     return render_template('community/chat.html', rooms=default_rooms, db_rooms=db_rooms)
 
 @community_bp.route('/chat/create', methods=['POST'])
@@ -362,7 +368,13 @@ def chat_room(room_id):
         {'id': 'help', 'name': 'Help & Support'},
         {'id': 'announcements', 'name': 'Announcements'}
     ]
-    db_rooms = ChatRoom.query.order_by(ChatRoom.created_at.desc()).all()
+    # Only show rooms user can see
+    if current_user.is_authenticated and current_user.is_admin():
+        db_rooms = ChatRoom.query.order_by(ChatRoom.created_at.desc()).all()
+    else:
+        db_rooms = ChatRoom.query.filter(
+            (ChatRoom.is_private == False) | (ChatRoom.created_by == (current_user.id if current_user.is_authenticated else -1))
+        ).order_by(ChatRoom.created_at.desc()).all()
     # The chat template will auto-join based on URL path
     return render_template('community/chat.html', rooms=default_rooms, db_rooms=db_rooms)
 
@@ -370,6 +382,12 @@ def chat_room(room_id):
 @login_required
 def get_room_messages(room_id):
     """API endpoint to get messages for a specific room"""
+    # Enforce private room access
+    room = ChatRoom.query.filter_by(room_id=room_id).first()
+    if room and room.is_private:
+        allowed = current_user.is_authenticated and (current_user.is_admin() or room.created_by == current_user.id)
+        if not allowed:
+            return jsonify({'error': 'access denied'}), 403
     messages = ChatMessage.query.filter_by(room=room_id).order_by(ChatMessage.timestamp.asc()).limit(50).all()
     
     return jsonify({
@@ -462,7 +480,7 @@ def create_video_call():
             return jsonify({
                 'success': True,
                 'room_id': room_id,
-                'room_url': url_for('community.video_call_room', room_id=room_id)
+                'room_url': url_for('community.video_call_room', room_id=room_id, _external=True)
             })
         else:
             return redirect(url_for('community.video_call_room', room_id=room_id))
@@ -486,6 +504,16 @@ def create_video_call():
         )
         db.session.add(video_call)
         db.session.commit()
+        # Announce availability to the chat room
+        try:
+            from app import socketio
+            socketio.emit('video_call_available', {
+                'video_room_id': room_id,
+                'video_room_url': url_for('community.video_call_room', room_id=room_id, _external=True),
+                'started_by': (current_user.get_full_name() if hasattr(current_user, 'get_full_name') else current_user.username)
+            }, room=prefill_room)
+        except Exception:
+            pass
         return redirect(url_for('community.video_call_room', room_id=room_id))
     return render_template('community/create_video_call.html', chat_room=prefill_room)
 
@@ -493,13 +521,19 @@ def create_video_call():
 @login_required
 def check_video_call(chat_room):
     """Check if there's an active video call for a chat room"""
+    # Enforce private room access for call discovery
+    room = ChatRoom.query.filter_by(room_id=chat_room).first()
+    if room and room.is_private:
+        allowed = current_user.is_authenticated and (current_user.is_admin() or room.created_by == current_user.id)
+        if not allowed:
+            return jsonify({'exists': False})
     video_call = VideoCall.query.filter_by(chat_room=chat_room, is_active=True).first()
     
     if video_call:
         return jsonify({
             'exists': True,
             'room_id': video_call.room_id,
-            'room_url': url_for('community.video_call_room', room_id=video_call.room_id)
+            'room_url': url_for('community.video_call_room', room_id=video_call.room_id, _external=True)
         })
     else:
         return jsonify({'exists': False})
@@ -713,7 +747,7 @@ def end_video_call(room_id):
         
         current_app.logger.info(f"Video call ended notification sent for room: {video_call.chat_room}")
     
-    return jsonify({'success': True, 'message': 'Video call ended'})
+    return jsonify({'success': True, 'message': 'Video call ended', 'room': video_call.chat_room})
 
 @community_bp.route('/files')
 @login_required

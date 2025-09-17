@@ -230,6 +230,7 @@ const options = {
 let api = null;
 let isVirtualBackgroundEnabled = false;
 let isEnding = false;
+let didClickHangup = false;
 
 // WebRTC support detection
 function checkWebRTCSupport() {
@@ -362,9 +363,51 @@ function initJitsi() {
     // Connection events
     api.addListener('videoConferenceLeft', async () => {
         console.log('👋 Left video conference');
+        // If host clicked native hangup, ensure server-side end
+        if (isHost && didClickHangup && !isEnding) {
+            try {
+                isEnding = true;
+                await fetch(`/community/video_call/${roomId}/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
+            } catch(_) {}
+        }
         if (!isEnding) {
             window.location.href = backUrl;
         }
+    });
+
+    // Detect native Jitsi hangup clicks so hosts end the server call too
+    api.addListener('toolbarButtonClicked', (e) => {
+        try {
+            if (!e || !e.key) return;
+            if (e.key === 'hangup' && isHost && !isEnding) {
+                didClickHangup = true;
+                isEnding = true;
+                fetch(`/community/video_call/${roomId}/end`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    cache: 'no-store'
+                }).then(() => {
+                    // Let Jitsi close and then return to chat
+                    setTimeout(() => { window.location.href = backUrl; }, 50);
+                }).catch(() => {
+                    // Best-effort; still navigate away
+                    setTimeout(() => { window.location.href = backUrl; }, 50);
+                });
+            }
+        } catch (_) { /* ignore */ }
+    });
+
+    // Fallback: when Jitsi signals it's ready to close (typically after hangup)
+    api.addListener('readyToClose', async () => {
+        try {
+            if (isHost && !isEnding) {
+                didClickHangup = true;
+                isEnding = true;
+                await fetch(`/community/video_call/${roomId}/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
+            }
+        } catch(_) {}
+        window.location.href = backUrl;
     });
 
     api.addListener('videoConferenceJoined', () => {
@@ -538,6 +581,12 @@ function reallyEndVideoCall() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('endCallModal'));
             if (modal) modal.hide();
             try { api?.executeCommand('hangup'); } catch (e) {}
+            // Proactively tell the chat room to clear its badge
+            try {
+                if (window.socket && data.room) {
+                    window.socket.emit('video_call_ended', { chat_room: data.room, video_room_id: roomId });
+                }
+            } catch(e) {}
             window.location.href = backUrl;
         } else {
             btn.disabled = false;

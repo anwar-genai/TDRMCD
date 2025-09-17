@@ -123,6 +123,13 @@ def on_join_chat(data):
     print(f"Join chat request from user: {current_user}")
     print(f"User authenticated: {current_user.is_authenticated}")
     room = data['room']
+    # Enforce private room access: only creator or admin may join private rooms
+    chat_room = ChatRoom.query.filter_by(room_id=room).first()
+    if chat_room and chat_room.is_private:
+        is_allowed = current_user.is_authenticated and (current_user.is_admin() or chat_room.created_by == current_user.id)
+        if not is_allowed:
+            emit('receive_message', {'message': 'Access denied to private room', 'username': 'System', 'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')})
+            return
     print(f"Joining room: {room}")
     join_room(room)
     username = current_user.username if current_user.is_authenticated else "Anonymous"
@@ -144,6 +151,12 @@ def handle_message(data):
     print(f"Message received from user: {current_user}")
     print(f"User authenticated: {current_user.is_authenticated}")
     room = data['room']
+    # Guard: enforce private room access on send
+    chat_room = ChatRoom.query.filter_by(room_id=room).first()
+    if chat_room and chat_room.is_private:
+        if not (current_user.is_authenticated and (current_user.is_admin() or chat_room.created_by == current_user.id)):
+            emit('receive_message', {'message': 'Access denied to private room', 'username': 'System', 'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')})
+            return
     message = data['message']
     print(f"Saving message: {message} in room: {room}")
     

@@ -745,7 +745,15 @@ function updateActiveCallBadge(roomId) {
                 joinBtn.classList.add('d-none');
                 joinBtn.removeAttribute('data-url');
             }
-        }).catch(() => {});
+        }).catch(() => {
+            const statusEl = document.getElementById('room-call-status');
+            const joinBtn = document.getElementById('join-call-btn');
+            if (statusEl) statusEl.textContent = 'No active call';
+            if (joinBtn) {
+                joinBtn.classList.add('d-none');
+                joinBtn.removeAttribute('data-url');
+            }
+        });
 }
 
 function joinActiveCall() {
