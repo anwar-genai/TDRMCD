@@ -1,9 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from models import db, User, Resource, CommunityPost, FileSubmission, Campaign, Notification
 from forms import CampaignForm
 from functools import wraps
 from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -209,6 +211,21 @@ def campaigns():
 def create_campaign():
     form = CampaignForm()
     if form.validate_on_submit():
+        image_url = None
+        if form.image.data:
+            try:
+                uploads_dir = os.path.join(current_app.root_path, 'uploads', 'campaigns')
+                os.makedirs(uploads_dir, exist_ok=True)
+                original_name = secure_filename(form.image.data.filename)
+                timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+                saved_name = f"{timestamp}_{original_name}"
+                save_path = os.path.join(uploads_dir, saved_name)
+                form.image.data.save(save_path)
+                image_url = f"/uploads/campaigns/{saved_name}"
+            except Exception as e:
+                print(f"Error saving campaign image: {e}")
+                flash('Campaign saved, but image upload failed.', 'warning')
+        
         campaign = Campaign(
             title=form.title.data,
             description=form.description.data,
@@ -217,6 +234,7 @@ def create_campaign():
             target_audience=form.target_audience.data,
             start_date=form.start_date.data,
             end_date=form.end_date.data,
+            image_url=image_url,
             created_by=current_user.id
         )
         

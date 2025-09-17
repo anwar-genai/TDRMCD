@@ -166,6 +166,15 @@ def campaigns_by_type(campaign_type):
         current_type = campaign_type
     return render_template('main/campaigns.html', campaigns=campaigns, current_type=current_type)
 
+# Campaign detail page
+@main_bp.route('/campaign/<int:campaign_id>')
+def campaign_detail(campaign_id):
+    campaign = Campaign.query.get_or_404(campaign_id)
+    if not campaign.is_active:
+        # Optional: could 404 or show a notice
+        return render_template('main/campaign_detail.html', campaign=campaign, inactive=True)
+    return render_template('main/campaign_detail.html', campaign=campaign, inactive=False)
+
 @main_bp.route('/api/notifications/mark_read/<int:notification_id>', methods=['POST'])
 @login_required
 def mark_notification_read(notification_id):

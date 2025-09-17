@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Users{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0"><i class="fas fa-users-cog me-2"></i>Users</h3>
+    </div>
+
+    <form class="row g-2 mb-3" method="get">
+        <div class="col-sm-6 col-md-4">
+            <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Search by name, username, email">
+        </div>
+        <div class="col-sm-4 col-md-3">
+            <select class="form-select" name="role">
+                <option value="all" {% if role=='all' %}selected{% endif %}>All roles</option>
+                <option value="user" {% if role=='user' %}selected{% endif %}>User</option>
+                <option value="researcher" {% if role=='researcher' %}selected{% endif %}>Researcher</option>
+                <option value="admin" {% if role=='admin' %}selected{% endif %}>Admin</option>
+            </select>
+        </div>
+        <div class="col-sm-2 col-md-2">
+            <button class="btn btn-primary w-100" type="submit"><i class="fas fa-search me-1"></i>Filter</button>
+        </div>
+    </form>
+
+    {% if users and users.items %}
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users.items %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ u.get_full_name() }}</div>
+                        <div class="small text-muted">@{{ u.username }}</div>
+                    </td>
+                    <td class="small">{{ u.email }}</td>
+                    <td class="text-capitalize">{{ u.role }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if u.is_active else 'secondary' }}">
+                            {{ 'Active' if u.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td class="small text-muted">{{ u.created_at.strftime('%Y-%m-%d') if u.created_at }}</td>
+                    <td>
+                        <form action="{{ url_for('admin.change_user_role', user_id=u.id) }}" method="post" class="d-inline">
+                            <select name="role" class="form-select form-select-sm d-inline w-auto me-2">
+                                <option value="user" {% if u.role=='user' %}selected{% endif %}>User</option>
+                                <option value="researcher" {% if u.role=='researcher' %}selected{% endif %}>Researcher</option>
+                                <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary" type="submit">
+                                <i class="fas fa-user-shield me-1"></i>Update Role
+                            </button>
+                        </form>
+                        <form action="{{ url_for('admin.toggle_user_status', user_id=u.id) }}" method="post" class="d-inline ms-2">
+                            <button class="btn btn-sm btn-outline-{{ 'secondary' if u.is_active else 'success' }}" type="submit">
+                                <i class="fas fa-toggle-{{ 'off' if u.is_active else 'on' }} me-1"></i>
+                                {{ 'Deactivate' if u.is_active else 'Activate' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Pagination">
+        <ul class="pagination">
+            {% if users.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.users', page=users.prev_num, search=search, role=role) }}">Previous</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">Page {{ users.page }} of {{ users.pages }}</span></li>
+
+            {% if users.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.users', page=users.next_num, search=search, role=role) }}">Next</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% else %}
+    <div class="alert alert-info">No users found.</div>
+    {% endif %}
+</div>
+{% endblock %}

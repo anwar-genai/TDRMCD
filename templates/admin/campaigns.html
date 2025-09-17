@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Campaigns{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0"><i class="fas fa-bullhorn me-2"></i>Campaigns</h3>
+        <a href="{{ url_for('admin.create_campaign') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Create Campaign
+        </a>
+    </div>
+
+    {% if campaigns and campaigns.items %}
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in campaigns.items %}
+                <tr>
+                    <td class="fw-semibold">
+                        <a href="{{ url_for('main.campaign_detail', campaign_id=c.id) }}" class="text-decoration-none">{{ c.title }}</a>
+                    </td>
+                    <td class="text-uppercase small">{{ c.campaign_type }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if c.is_active else 'secondary' }}">
+                            {{ 'Active' if c.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td class="small text-muted">{{ c.created_at.strftime('%Y-%m-%d') if c.created_at }}</td>
+                    <td>
+                        <form action="{{ url_for('admin.toggle_campaign', campaign_id=c.id) }}" method="post" class="d-inline">
+                            <button class="btn btn-sm btn-outline-{{ 'secondary' if c.is_active else 'success' }}" type="submit">
+                                <i class="fas fa-toggle-{{ 'off' if c.is_active else 'on' }} me-1"></i>
+                                {{ 'Deactivate' if c.is_active else 'Activate' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Pagination">
+        <ul class="pagination">
+            {% if campaigns.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.campaigns', page=campaigns.prev_num) }}">Previous</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">Page {{ campaigns.page }} of {{ campaigns.pages }}</span></li>
+
+            {% if campaigns.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.campaigns', page=campaigns.next_num) }}">Next</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% else %}
+    <div class="alert alert-info">No campaigns yet. Click "Create Campaign" to add one.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -137,8 +137,8 @@ class CampaignForm(FlaskForm):
         ('awareness', 'General Awareness')
     ])
     target_audience = StringField('Target Audience', validators=[Optional(), Length(max=100)])
-    start_date = DateTimeField('Start Date', validators=[Optional()], format='%Y-%m-%d')
-    end_date = DateTimeField('End Date', validators=[Optional()], format='%Y-%m-%d')
+    start_date = DateTimeField('Start Date & Time', validators=[Optional()], format='%Y-%m-%dT%H:%M')
+    end_date = DateTimeField('End Date & Time', validators=[Optional()], format='%Y-%m-%dT%H:%M')
     image = FileField('Campaign Image', validators=[
         Optional(),
         FileAllowed(['jpg', 'jpeg', 'png', 'gif'], 'Images only!')

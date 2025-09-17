@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - Resources{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0"><i class="fas fa-database me-2"></i>Resources</h3>
+    </div>
+
+    <form class="row g-2 mb-3" method="get">
+        <div class="col-sm-4 col-md-3">
+            <select class="form-select" name="status">
+                <option value="all" {% if status=='all' %}selected{% endif %}>All statuses</option>
+                <option value="active" {% if status=='active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status=='inactive' %}selected{% endif %}>Inactive</option>
+                <option value="under_review" {% if status=='under_review' %}selected{% endif %}>Under Review</option>
+            </select>
+        </div>
+        <div class="col-sm-4 col-md-3">
+            <select class="form-select" name="category">
+                <option value="all" {% if category=='all' %}selected{% endif %}>All categories</option>
+                <option value="minerals" {% if category=='minerals' %}selected{% endif %}>Minerals</option>
+                <option value="agriculture" {% if category=='agriculture' %}selected{% endif %}>Agriculture</option>
+                <option value="wildlife" {% if category=='wildlife' %}selected{% endif %}>Wildlife</option>
+                <option value="cultural" {% if category=='cultural' %}selected{% endif %}>Cultural Heritage</option>
+            </select>
+        </div>
+        <div class="col-sm-4 col-md-2">
+            <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter me-1"></i>Filter</button>
+        </div>
+    </form>
+
+    {% if resources and resources.items %}
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                    <th>Author</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in resources.items %}
+                <tr>
+                    <td class="fw-semibold">{{ r.title }}</td>
+                    <td class="text-capitalize">{{ r.category }}</td>
+                    <td>
+                        <span class="badge bg-secondary">{{ r.status }}</span>
+                    </td>
+                    <td class="small">{{ r.author.get_full_name() }}</td>
+                    <td class="small text-muted">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at }}</td>
+                    <td>
+                        <form action="{{ url_for('admin.change_resource_status', resource_id=r.id) }}" method="post" class="d-inline">
+                            <select name="status" class="form-select form-select-sm d-inline w-auto me-2">
+                                <option value="active" {% if r.status=='active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if r.status=='inactive' %}selected{% endif %}>Inactive</option>
+                                <option value="under_review" {% if r.status=='under_review' %}selected{% endif %}>Under Review</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary" type="submit">
+                                <i class="fas fa-save me-1"></i>Update
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Pagination">
+        <ul class="pagination">
+            {% if resources.has_prev %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.resources', page=resources.prev_num, status=status, category=category) }}">Previous</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">Page {{ resources.page }} of {{ resources.pages }}</span></li>
+
+            {% if resources.has_next %}
+            <li class="page-item"><a class="page-link" href="{{ url_for('admin.resources', page=resources.next_num, status=status, category=category) }}">Next</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% else %}
+    <div class="alert alert-info">No resources found.</div>
+    {% endif %}
+</div>
+{% endblock %}

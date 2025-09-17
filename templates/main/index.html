@@ -198,13 +198,13 @@
                             {{ campaign.description[:80] }}{% if campaign.description|length > 80 %}...{% endif %}
                         </p>
                         
-                        <a href="#" class="btn btn-sm btn-outline-primary">Learn More</a>
+                        <a href="{{ url_for('main.campaign_detail', campaign_id=campaign.id) }}" class="btn btn-sm btn-outline-primary">Learn More</a>
                     </div>
                 </div>
                 {% endfor %}
                 
                 <div class="text-center">
-                    <a href="#" class="btn btn-sm btn-primary">View All Campaigns</a>
+                    <a href="{{ url_for('main.campaigns_by_type', campaign_type='invalid') }}" class="btn btn-sm btn-primary">View All Campaigns</a>
                 </div>
             </div>
         </div>
