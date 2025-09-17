@@ -5,8 +5,62 @@ from sqlalchemy import desc
 from forms import LoginForm, RegistrationForm, EditProfileForm
 from datetime import datetime
 from urllib.parse import urlparse as url_parse
+import re
 
 auth_bp = Blueprint('auth', __name__)
+
+# Normalize and sanitize next URL so we never redirect to POST-only endpoints
+# and never redirect off-site.
+def _safe_next_url(next_url: str) -> str:
+    try:
+        if not next_url:
+            return url_for('main.dashboard')
+        parsed = url_parse(next_url)
+        # Disallow external hosts
+        if parsed.netloc:
+            return url_for('main.dashboard')
+        path = parsed.path or '/'
+        # Map common POST-only community endpoints to safe GET pages
+        # 1) Comment on post → post detail with comments anchor
+        m = re.match(r'^/community/post/(\d+)/comment$', path)
+        if m:
+            post_id = int(m.group(1))
+            return url_for('community.post_detail', id=post_id) + '#comments'
+        # 2) Like post → post detail
+        m = re.match(r'^/community/post/(\d+)/like$', path)
+        if m:
+            post_id = int(m.group(1))
+            return url_for('community.post_detail', id=post_id)
+        # 3) Like comment → resolve to that comment's post then go to comments
+        m = re.match(r'^/community/comment/(\d+)/like$', path)
+        if m:
+            try:
+                from models import Comment  # local import to avoid cycles
+                comment_id = int(m.group(1))
+                comment = Comment.query.get(comment_id)
+                if comment:
+                    return url_for('community.post_detail', id=comment.post_id) + '#comments'
+            except Exception:
+                pass
+            return url_for('community.index')
+        # 4) Chat room create (POST) → chat landing
+        if path == '/community/chat/create':
+            return url_for('community.chat')
+        # 5) End video call (POST) → video call room
+        m = re.match(r'^/community/video_call/([^/]+)/end$', path)
+        if m:
+            room_id = m.group(1)
+            return url_for('community.video_call_room', room_id=room_id)
+        # Fallback: if path looks like a normal page, keep it as-is
+        # but ensure it starts with '/'
+        if not path.startswith('/'):
+            path = '/' + path
+        # Re-append query string if present
+        if parsed.query:
+            return f"{path}?{parsed.query}"
+        return path
+    except Exception:
+        return url_for('main.dashboard')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -22,9 +76,8 @@ def login():
             db.session.commit()
             
             # Preserve intended destination from query string or hidden form field
-            next_page = request.args.get('next') or request.form.get('next')
-            if not next_page or url_parse(next_page).netloc != '':
-                next_page = url_for('main.dashboard')
+            raw_next = request.args.get('next') or request.form.get('next')
+            next_page = _safe_next_url(raw_next)
             return redirect(next_page)
         flash('Invalid username or password', 'error')
     

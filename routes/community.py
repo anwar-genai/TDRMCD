@@ -7,6 +7,7 @@ import os
 import uuid
 from datetime import datetime, timedelta
 import jwt
+from sqlalchemy import func
 
 community_bp = Blueprint('community', __name__)
 
@@ -47,13 +48,21 @@ def index():
             PostLike.post_id.in_(page_post_ids)
         ).with_entities(PostLike.post_id).all()
         liked_post_ids = {pid for (pid,) in likes}
+
+    # Recent shared files widget (approved or own)
+    files_query = FileSubmission.query
+    if not current_user.is_authenticated or not current_user.is_admin():
+        # Non-admins: show approved files only
+        files_query = files_query.filter_by(status='approved')
+    recent_files = files_query.order_by(FileSubmission.created_at.desc()).limit(6).all()
     
     return render_template('community/index.html',
                          posts=posts,
                          categories=categories,
                          current_category=category,
                          current_sort=sort_by,
-                         liked_post_ids=liked_post_ids)
+                         liked_post_ids=liked_post_ids,
+                         recent_files=recent_files)
 
 @community_bp.route('/post/<int:id>')
 def post_detail(id):
@@ -63,8 +72,32 @@ def post_detail(id):
     post.views += 1
     db.session.commit()
     
-    # Get comments
+    # Get comments (top-level first)
     comments = Comment.query.filter_by(post_id=id, parent_id=None).order_by(Comment.created_at.asc()).all()
+    
+    # Build list of all comment IDs (including replies) for like aggregation
+    all_comment_ids = []
+    for c in comments:
+        all_comment_ids.append(c.id)
+        for r in (c.replies or []):
+            all_comment_ids.append(r.id)
+    
+    # Aggregate like counts per comment
+    comment_like_counts = {}
+    if all_comment_ids:
+        rows = db.session.query(CommentLike.comment_id, func.count(CommentLike.id)) \
+            .filter(CommentLike.comment_id.in_(all_comment_ids)) \
+            .group_by(CommentLike.comment_id).all()
+        comment_like_counts = {cid: cnt for cid, cnt in rows}
+    
+    # Determine which comments current user liked
+    comments_liked_by_me = set()
+    if current_user.is_authenticated and all_comment_ids:
+        liked_rows = CommentLike.query.filter(
+            CommentLike.user_id == current_user.id,
+            CommentLike.comment_id.in_(all_comment_ids)
+        ).with_entities(CommentLike.comment_id).all()
+        comments_liked_by_me = {cid for (cid,) in liked_rows}
     
     comment_form = CommentForm()
     # Determine if current user liked this post
@@ -76,24 +109,41 @@ def post_detail(id):
                          post=post,
                          comments=comments,
                          comment_form=comment_form,
-                         liked_by_me=liked_by_me)
+                         liked_by_me=liked_by_me,
+                         comment_like_counts=comment_like_counts,
+                         comments_liked_by_me=comments_liked_by_me)
 
 @community_bp.route('/create_post', methods=['GET', 'POST'])
 @login_required
 def create_post():
     form = CommunityPostForm()
     if form.validate_on_submit():
-        # Auto-generate title if blank (first 60 chars of content)
-        auto_title = (form.content.data or '').strip().split('\n')[0][:60]
+        # Determine category from post_type if provided
+        post_type = (request.form.get('post_type') or '').strip()
+        type_to_category = {
+            'discussion': 'discussion',
+            'question': 'question',
+            'announcement': 'announcement',
+            'news': 'news',
+            'quick': 'discussion'  # fallback category for content-only quick update
+        }
+        resolved_category = type_to_category.get(post_type, (form.category.data or 'discussion'))
+
+        # For content-only (quick), keep title empty
+        is_content_only = (post_type == 'quick')
+        content_text = form.content.data
+        auto_title = (content_text or '').strip().split('\n')[0][:60]
+        final_title = '' if is_content_only else ((form.title.data.strip() if form.title.data else auto_title) or 'Untitled')
+
         post = CommunityPost(
-            title=(form.title.data.strip() if form.title.data else auto_title) or 'Untitled',
-            content=form.content.data,
-            category=form.category.data,
+            title=final_title,
+            content=content_text,
+            category=resolved_category,
             tags=form.tags.data,
             author_id=current_user.id
         )
         
-        # Handle image upload
+        # Handle image upload (skip by UI when quick type, but backend is tolerant)
         if form.image.data:
             filename = secure_filename(form.image.data.filename)
             if filename:

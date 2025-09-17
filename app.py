@@ -85,6 +85,13 @@ app.register_blueprint(resources_bp, url_prefix='/resources')
 app.register_blueprint(community_bp, url_prefix='/community')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 
+# Ensure all tables exist (safe for SQLite/dev; complements migrations)
+with app.app_context():
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"Warning: could not ensure all tables exist: {e}")
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))

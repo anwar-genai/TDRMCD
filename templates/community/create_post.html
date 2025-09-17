@@ -15,6 +15,8 @@
                     <form method="post" enctype="multipart/form-data">
                         {{ form.hidden_tag() }}
                         <input type="hidden" name="post_type" id="post_type" value="">
+                        <!-- Hidden category drives backend; UI controlled by Post Type buttons -->
+                        <input type="hidden" name="category" id="hidden_category" value="{{ form.category.data or 'discussion' }}">
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Post Type</label>
@@ -30,18 +32,15 @@
 
                         <div class="mb-3" id="title-group">
                             {{ form.title.label(class="form-label fw-bold") }}
-                            {{ form.title(class="form-control form-control-lg") }}
+                            {{ form.title(class="form-control form-control-lg", placeholder="Optional title (auto from content if left empty)") }}
                             {% if form.title.errors %}
                                 <div class="text-danger small mt-1">{% for e in form.title.errors %}<div>{{ e }}</div>{% endfor %}</div>
                             {% endif %}
                         </div>
 
+                        <!-- Removed visible category select; tags remains -->
                         <div class="row" id="meta-row">
-                            <div class="col-md-6 mb-3">
-                                {{ form.category.label(class="form-label fw-bold") }}
-                                {{ form.category(class="form-select form-select-lg") }}
-                            </div>
-                            <div class="col-md-6 mb-3">
+                            <div class="col-md-12 mb-3">
                                 {{ form.tags.label(class="form-label fw-bold") }}
                                 {{ form.tags(class="form-control", placeholder="e.g., mining, agriculture") }}
                             </div>
@@ -76,19 +75,20 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const typeButtons = document.querySelectorAll('[data-post-type]');
-    const categorySelect = document.getElementById('{{ form.category.id }}');
     const titleInput = document.getElementById('{{ form.title.id }}');
     const titleGroup = document.getElementById('title-group');
     const metaRow = document.getElementById('meta-row');
     const imageGroup = document.getElementById('image-group');
     const contentInput = document.getElementById('{{ form.content.id }}');
     const postTypeInput = document.getElementById('post_type');
+    const hiddenCategory = document.getElementById('hidden_category');
 
     const typeToCategory = {
         discussion: 'discussion',
         question: 'question',
         announcement: 'announcement',
-        news: 'news'
+        news: 'news',
+        quick: 'discussion' // fallback category for content-only quick updates
     };
 
     typeButtons.forEach(btn => {
@@ -97,23 +97,17 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.add('active');
             const type = this.getAttribute('data-post-type');
             if (postTypeInput) postTypeInput.value = type;
+            if (hiddenCategory && typeToCategory[type]) hiddenCategory.value = typeToCategory[type];
             if (type === 'quick') {
-                titleInput.placeholder = 'Optional title (auto from content if left empty)';
-                // Show only content field
+                // Content-only mode
                 if (titleGroup) titleGroup.style.display = 'none';
-                if (metaRow) metaRow.style.display = 'none';
                 if (imageGroup) imageGroup.style.display = 'none';
             } else {
-                if (typeToCategory[type]) {
-                    categorySelect.value = typeToCategory[type];
-                }
-                titleInput.placeholder = '';
                 // Restore other fields
                 if (titleGroup) titleGroup.style.display = '';
-                if (metaRow) metaRow.style.display = '';
                 if (imageGroup) imageGroup.style.display = '';
             }
-            titleInput.focus();
+            if (contentInput) contentInput.focus();
         });
     });
 

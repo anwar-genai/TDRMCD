@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }} - Community Post{% endblock %}
+{% block title %}{{ post.title or 'Community Post' }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -18,7 +18,9 @@
                                 {% endif %}
                             </div>
                             <div>
+                                {% if post.title %}
                                 <h3 class="mb-1">{{ post.title }}</h3>
+                                {% endif %}
                                 <div class="text-muted small">By <a class="text-decoration-none" href="{{ url_for('auth.public_profile', username=post.author.username) }}">{{ post.author.get_full_name() }}</a> • {{ post.created_at.strftime('%B %d, %Y') }}</div>
                             </div>
                         </div>
@@ -46,9 +48,10 @@
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
+            <div class="card" id="comments">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">Comments</h6>
+                    <span class="small text-muted">Be respectful and constructive</span>
                 </div>
                 <div class="card-body">
                     {% if current_user.is_authenticated %}
@@ -64,7 +67,7 @@
                         <button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane me-1"></i>Post Comment</button>
                     </form>
                     {% else %}
-                    <div class="alert alert-info">Please <a href="{{ url_for('auth.login') }}">log in</a> to comment.</div>
+                    <div class="alert alert-info">Please <a href="{{ url_for('auth.login', next=request.path + '#comments') }}">log in</a> to comment.</div>
                     {% endif %}
 
                     {% if comments %}
@@ -84,10 +87,12 @@
                                         <small class="text-muted">{{ c.created_at.strftime('%b %d, %Y %H:%M') }}</small>
                                     </div>
                                     <div>{{ c.content }}</div>
-                                    <div class="mt-1 d-flex gap-3 align-items-center small text-muted">
+                                    <div class="mt-1 d-flex gap-3 align-items-center small">
                                         <a href="#" class="text-decoration-none" onclick="toggleReply({{ c.id }});return false;">Reply</a>
-                                        <a href="#" class="text-decoration-none" onclick="toggleCommentLike({{ c.id }});return false;">
-                                            <i class="fas fa-heart me-1"></i><span id="comment-like-count-{{ c.id }}">0</span>
+                                        <a href="#" class="text-decoration-none" data-comment-id="{{ c.id }}" onclick="return toggleCommentLike({{ c.id }});">
+                                            <i id="comment-like-icon-{{ c.id }}" class="fas fa-heart me-1 {{ 'text-danger' if c.id in comments_liked_by_me else 'text-muted' }}"></i>
+                                            <span id="comment-like-text-{{ c.id }}">{{ 'Unlike' if c.id in comments_liked_by_me else 'Like' }}</span>
+                                            <span class="ms-1 text-muted" id="comment-like-count-{{ c.id }}">{{ comment_like_counts.get(c.id, 0) }}</span>
                                         </a>
                                     </div>
                                     <form id="reply-form-{{ c.id }}" class="mt-2 d-none" method="post" action="{{ url_for('community.add_comment', id=post.id) }}">
@@ -113,9 +118,11 @@
                                                     <small class="text-muted">{{ r.created_at.strftime('%b %d, %Y %H:%M') }}</small>
                                                 </div>
                                                 <div>{{ r.content }}</div>
-                                                <div class="mt-1 d-flex gap-3 align-items-center small text-muted">
-                                                    <a href="#" class="text-decoration-none" onclick="toggleCommentLike({{ r.id }});return false;">
-                                                        <i class="fas fa-heart me-1"></i><span id="comment-like-count-{{ r.id }}">0</span>
+                                                <div class="mt-1 d-flex gap-3 align-items-center small">
+                                                    <a href="#" class="text-decoration-none" data-comment-id="{{ r.id }}" onclick="return toggleCommentLike({{ r.id }});">
+                                                        <i id="comment-like-icon-{{ r.id }}" class="fas fa-heart me-1 {{ 'text-danger' if r.id in comments_liked_by_me else 'text-muted' }}"></i>
+                                                        <span id="comment-like-text-{{ r.id }}">{{ 'Unlike' if r.id in comments_liked_by_me else 'Like' }}</span>
+                                                        <span class="ms-1 text-muted" id="comment-like-count-{{ r.id }}">{{ comment_like_counts.get(r.id, 0) }}</span>
                                                     </a>
                                                 </div>
                                             </div>
@@ -154,27 +161,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const likeCount = document.getElementById('like-count');
     const likeText = document.getElementById('like-text');
 
-    if (!likeBtn) return;
-
-    likeBtn.addEventListener('click', async function(e) {
-        e.preventDefault();
-        try {
-            const res = await fetch('{{ url_for('community.like_post', id=post.id) }}', { method: 'POST' });
-            const data = await res.json();
-            likeCount.textContent = data.likes;
-            if (data.liked) {
-                likeBtn.classList.remove('btn-outline-danger');
-                likeBtn.classList.add('btn-danger');
-                likeText.textContent = 'Liked';
-            } else {
-                likeBtn.classList.add('btn-outline-danger');
-                likeBtn.classList.remove('btn-danger');
-                likeText.textContent = 'Like';
+    if (likeBtn) {
+        likeBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            try {
+                const res = await fetch('{{ url_for('community.like_post', id=post.id) }}', { method: 'POST' });
+                if (res.status === 401) {
+                    window.location.href = '{{ url_for('auth.login', next=request.full_path|replace("'","%27")) }}';
+                    return;
+                }
+                const data = await res.json();
+                likeCount.textContent = data.likes;
+                if (data.liked) {
+                    likeBtn.classList.remove('btn-outline-danger');
+                    likeBtn.classList.add('btn-danger');
+                    likeText.textContent = 'Liked';
+                } else {
+                    likeBtn.classList.add('btn-outline-danger');
+                    likeBtn.classList.remove('btn-danger');
+                    likeText.textContent = 'Like';
+                }
+            } catch (err) {
+                console.error(err);
             }
-        } catch (err) {
-            console.error(err);
-        }
-    });
+        });
+    }
 });
 
 function toggleReply(commentId) {
@@ -186,11 +197,25 @@ function toggleReply(commentId) {
 async function toggleCommentLike(commentId) {
     try {
         const res = await fetch(`/community/comment/${commentId}/like`, { method: 'POST' });
+        if (res.status === 401) {
+            const nextUrl = encodeURIComponent(window.location.pathname + '#comments');
+            window.location.href = `/auth/login?next=${nextUrl}`;
+            return false;
+        }
         const data = await res.json();
         const countEl = document.getElementById(`comment-like-count-${commentId}`);
+        const iconEl = document.getElementById(`comment-like-icon-${commentId}`);
+        const textEl = document.getElementById(`comment-like-text-${commentId}`);
         if (countEl) countEl.textContent = data.likes;
+        if (iconEl) {
+            iconEl.classList.toggle('text-danger', data.liked);
+            iconEl.classList.toggle('text-muted', !data.liked);
+        }
+        if (textEl) textEl.textContent = data.liked ? 'Unlike' : 'Like';
+        return false;
     } catch (e) {
         console.error(e);
+        return false;
     }
 }
 </script>
