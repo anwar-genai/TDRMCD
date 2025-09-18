@@ -54,9 +54,89 @@
                     </div>
                 </div>
             </div>
+            {% if posts %}
+            <div class="card shadow-sm mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-comments me-2"></i>My Recent Posts</h6>
+                    <a class="small text-decoration-none" href="{{ url_for('community.index') }}">Go to Community</a>
+                </div>
+                <div class="card-body">
+                    {% for p in posts %}
+                    <div class="mb-3 d-flex justify-content-between align-items-start">
+                        <div>
+                            <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=p.id) }}">
+                                <strong>{{ p.title or 'Post' }}</strong>
+                            </a>
+                            <div class="text-muted small">{{ p.created_at.strftime('%b %d, %Y') }} • {{ p.category.title() }}</div>
+                            <div class="small text-muted">{{ p.content[:120] }}{% if p.content|length > 120 %}...{% endif %}</div>
+                        </div>
+                        <div class="ms-3">
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('community.edit_post', id=p.id) }}">Edit</a>
+                            <button class="btn btn-sm btn-outline-danger" type="button" data-delete-post-id="{{ p.id }}">Delete</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// Custom delete with modal + AJAX for profile list
+document.addEventListener('click', function(e){
+    const btn = e.target.closest('[data-delete-post-id]');
+    if (!btn) return;
+    const postId = btn.getAttribute('data-delete-post-id');
+    const row = btn.closest('.mb-3');
+    showDeleteModal(async () => {
+        try {
+            const res = await fetch(`/community/post/${postId}/delete`, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (res.ok) {
+                if (row) row.remove();
+            }
+        } catch (e) {}
+    });
+});
+
+function showDeleteModal(onConfirm){
+    let modal = document.getElementById('confirm-delete-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'confirm-delete-modal';
+        modal.className = 'modal fade show';
+        modal.style.display = 'block';
+        modal.style.background = 'rgba(0,0,0,.5)';
+        modal.innerHTML = `
+<div class="modal-dialog">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h5 class="modal-title">Delete post</h5>
+      <button type="button" class="btn-close" aria-label="Close"></button>
+    </div>
+    <div class="modal-body">
+      <p>Are you sure you want to delete this post? This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-dismiss>Cancel</button>
+      <button type="button" class="btn btn-danger" data-confirm>Delete</button>
+    </div>
+  </div>
+</div>`;
+        document.body.appendChild(modal);
+    }
+    const close = () => { if (modal && modal.parentNode) modal.parentNode.removeChild(modal); };
+    modal.addEventListener('click', function(ev){
+        if (ev.target.matches('[data-dismiss]') || ev.target.matches('.btn-close') || ev.target === modal) close();
+        if (ev.target.matches('[data-confirm]')) { onConfirm && onConfirm(); close(); }
+    }, { once: true });
+}
+</script>
 {% endblock %}
 
 

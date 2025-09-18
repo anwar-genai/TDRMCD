@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, abort
 from flask_login import login_required, current_user
 from models import db, CommunityPost, Comment, ChatMessage, FileSubmission, VideoCall, PostLike, ChatRoom, CommentLike, Notification
 from forms import CommunityPostForm, CommentForm, FileSubmissionForm
@@ -112,6 +112,76 @@ def post_detail(id):
                          liked_by_me=liked_by_me,
                          comment_like_counts=comment_like_counts,
                          comments_liked_by_me=comments_liked_by_me)
+
+@community_bp.route('/post/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_post(id):
+    post = CommunityPost.query.get_or_404(id)
+    # Only the author can edit
+    if current_user.id != post.author_id:
+        abort(403)
+
+    form = CommunityPostForm(obj=post)
+
+    if form.validate_on_submit():
+        # Respect content-only (quick) mode when updating
+        post_type = (request.form.get('post_type') or '').strip()
+        is_quick = (post_type == 'quick')
+
+        # Update fields
+        post.content = form.content.data
+        post.category = form.category.data
+        post.tags = form.tags.data
+        post.title = '' if is_quick else (form.title.data or '').strip()
+
+        # Optional: replace image if a new one is uploaded (skip in quick mode)
+        if (not is_quick) and form.image.data:
+            filename = secure_filename(form.image.data.filename)
+            if filename:
+                file_ext = filename.rsplit('.', 1)[1].lower()
+                unique_filename = f"{uuid.uuid4()}.{file_ext}"
+                image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], 'posts', unique_filename)
+                os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                form.image.data.save(image_path)
+                post.image_url = f"posts/{unique_filename}"
+
+        db.session.commit()
+        flash('Post updated successfully!', 'success')
+        return redirect(url_for('community.post_detail', id=post.id))
+
+    # Preselect content-only mode in UI if post has no title
+    is_content_only = (not (post.title or '').strip())
+    return render_template('community/edit_post.html', form=form, post=post, is_content_only=is_content_only)
+
+@community_bp.route('/post/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_post(id):
+    post = CommunityPost.query.get_or_404(id)
+    # Only the author can delete
+    if current_user.id != post.author_id:
+        abort(403)
+
+    try:
+        db.session.delete(post)
+        db.session.commit()
+        # AJAX request: return JSON for smoother UX
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+        if is_ajax:
+            return jsonify({'success': True})
+        flash('Post deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'delete_failed'}), 400
+        flash('Error deleting post. Please try again.', 'error')
+    # Prefer redirect to profile if deleting from detail page
+    try:
+        ref = request.headers.get('Referer') or ''
+        target = url_for('auth.profile') if f"/community/post/{id}" in ref else url_for('community.index')
+        return redirect(target)
+    except Exception:
+        return redirect(url_for('community.index'))
 
 @community_bp.route('/create_post', methods=['GET', 'POST'])
 @login_required

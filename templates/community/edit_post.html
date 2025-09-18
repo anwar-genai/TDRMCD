@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Post{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0"><i class="fas fa-pen me-2"></i>Edit Post</h3>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('community.post_detail', id=post.id) }}"><i class="fas fa-arrow-left me-1"></i>Back</a>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        <input type="hidden" name="post_type" id="post_type" value="{{ 'quick' if is_content_only else '' }}">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Post Type</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-outline-primary" data-post-type="discussion"><i class="fas fa-comments me-1"></i>Discussion</button>
+                                <button type="button" class="btn btn-outline-primary" data-post-type="question"><i class="fas fa-question-circle me-1"></i>Question</button>
+                                <button type="button" class="btn btn-outline-primary" data-post-type="announcement"><i class="fas fa-bullhorn me-1"></i>Announcement</button>
+                                <button type="button" class="btn btn-outline-primary" data-post-type="news"><i class="fas fa-newspaper me-1"></i>News</button>
+                                <button type="button" class="btn btn-outline-secondary" data-post-type="quick"><i class="fas fa-bolt me-1"></i>Quick Update (content only)</button>
+                            </div>
+                            <div class="form-text">Choose a type. Quick Update hides title and image.</div>
+                        </div>
+
+                        <div class="mb-3" id="title-group">
+                            {{ form.title.label(class="form-label fw-bold") }}
+                            {{ form.title(class="form-control form-control-lg", placeholder="Optional title") }}
+                            {% if form.title.errors %}
+                                <div class="text-danger small mt-1">{% for e in form.title.errors %}<div>{{ e }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.category.label(class="form-label fw-bold") }}
+                                {{ form.category(class="form-select") }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.tags.label(class="form-label fw-bold") }}
+                                {{ form.tags(class="form-control", placeholder="e.g., mining, agriculture") }}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label fw-bold") }}
+                            {{ form.content(class="form-control", rows="5", placeholder="Update the content...") }}
+                            {% if form.content.errors %}
+                                <div class="text-danger small mt-1">{% for e in form.content.errors %}<div>{{ e }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3" id="image-group">
+                            {{ form.image.label(class="form-label fw-bold") }}
+                            {{ form.image(class="form-control", accept="image/*") }}
+                            {% if post.image_url %}
+                            <div class="form-text">Current image: <a href="{{ url_for('serve_uploaded_file', subdir='posts', filename=post.image_url.split('/')[-1]) }}" target="_blank">view</a></div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a class="btn btn-outline-secondary" href="{{ url_for('community.post_detail', id=post.id) }}">Cancel</a>
+                            <button class="btn btn-primary" type="submit"><i class="fas fa-save me-1"></i>Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeButtons = document.querySelectorAll('[data-post-type]');
+    const titleGroup = document.getElementById('title-group');
+    const imageGroup = document.getElementById('image-group');
+    const postTypeInput = document.getElementById('post_type');
+    const categorySelect = document.getElementById('{{ form.category.id }}');
+
+    const typeToCategory = {
+        discussion: 'discussion',
+        question: 'question',
+        announcement: 'announcement',
+        news: 'news',
+        quick: 'discussion'
+    };
+
+    function applyType(type) {
+        typeButtons.forEach(b => b.classList.remove('active'));
+        const activeBtn = document.querySelector(`[data-post-type="${type}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+        if (postTypeInput) postTypeInput.value = type;
+        if (type === 'quick') {
+            if (titleGroup) titleGroup.style.display = 'none';
+            if (imageGroup) imageGroup.style.display = 'none';
+        } else {
+            if (titleGroup) titleGroup.style.display = '';
+            if (imageGroup) imageGroup.style.display = '';
+        }
+        if (categorySelect && typeToCategory[type]) {
+            categorySelect.value = typeToCategory[type];
+        }
+    }
+
+    typeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            applyType(this.getAttribute('data-post-type'));
+        });
+    });
+
+    // Preselect based on server-provided flag
+    const isContentOnly = {{ 'true' if is_content_only else 'false' }};
+    if (isContentOnly) {
+        applyType('quick');
+    } else if (postTypeInput && postTypeInput.value) {
+        applyType(postTypeInput.value);
+    }
+});
+</script>
+{% endblock %}

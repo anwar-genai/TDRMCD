@@ -131,7 +131,9 @@ def logout():
 @auth_bp.route('/profile')
 @login_required
 def profile():
-    return render_template('auth/profile.html', user=current_user)
+    # Show recent posts by the logged-in user
+    posts = CommunityPost.query.filter_by(author_id=current_user.id).order_by(desc(CommunityPost.created_at)).limit(10).all()
+    return render_template('auth/profile.html', user=current_user, posts=posts)
 
 @auth_bp.route('/u/<string:username>')
 def public_profile(username):
