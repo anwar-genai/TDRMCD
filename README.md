@@ -212,13 +212,6 @@ gunicorn -k eventlet -w 1 --bind 0.0.0.0:5000 app:app
 4. Push (`git push origin feature/xyz`)
 5. Open a Pull Request
 
-## 👨‍💻 Team
-
-- **Rizwan Ullah** (Reg#: 2021-USTB-125660) — rizwanwazir601@gmail.com
-- **Manzor Ahmad** (Reg#: 2021-USTB-125649) — manzorwazir12@gmail.com
-- **Talha** (Reg#: 2021-USTB-125637) — talhawazir02@gmail.com
-
-Supervisor: M Zahid Khan, Department of Software Engineering, UST Bannu
 
 ## 🆘 Support
 
