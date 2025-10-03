@@ -236,11 +236,18 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="file-upload-area" onclick="document.getElementById('chat-file-input').click()">
-                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                    <h6>Click to upload or drag and drop</h6>
-                    <p class="text-muted small">Supported formats: PDF, Images, Documents (Max 10MB)</p>
-                    <input type="file" id="chat-file-input" class="d-none" accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx">
+                <div class="file-upload-area" style="cursor: pointer; border: 2px dashed #ccc; padding: 20px; text-align: center; border-radius: 8px;">
+                    <button type="button" class="btn btn-link p-0 border-0 bg-transparent w-100 h-100" onclick="triggerFileSelection(event)" style="text-decoration: none; color: inherit;">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                        <h6>Click to upload or drag and drop</h6>
+                        <p class="text-muted small">Supported formats: PDF, Images, Documents (Max 10MB)</p>
+                    </button>
+                    <input type="file" id="chat-file-input" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx" style="margin-top: 10px;">
+                    <div id="selected-file-info" class="mt-2" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-file me-2"></i><span id="selected-file-name"></span>
+                        </div>
+                    </div>
                 </div>
                 <div class="mt-3">
                     <input type="text" class="form-control" placeholder="Add a caption (optional)" id="file-caption">
@@ -350,6 +357,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const modal = new bootstrap.Modal(document.getElementById('createRoomModal'));
         modal.show();
     }
+
+    // Setup file input event listener
+    const fileInput = document.getElementById('chat-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileSelection);
+    }
+
 
     // If the URL already contains a room (navigated here via pushState), hydrate UI
     const pathMatch = window.location.pathname.match(/\/community\/chat\/(.+)$/);
@@ -663,12 +677,60 @@ function attachFile() {
     modal.show();
 }
 
+function triggerFileSelection(event) {
+    console.log('triggerFileSelection called', event);
+    
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    console.log('Triggering file selection');
+    
+    const fileInput = document.getElementById('chat-file-input');
+    console.log('File input element:', fileInput);
+    
+    if (fileInput) {
+        fileInput.click();
+        console.log('File input click triggered');
+    } else {
+        console.error('File input not found!');
+    }
+    
+    return false;
+}
+
+function handleFileSelection(event) {
+    const fileInput = event.target;
+    const fileInfo = document.getElementById('selected-file-info');
+    const fileName = document.getElementById('selected-file-name');
+    
+    console.log('File selection changed, files:', fileInput.files.length);
+    console.log('File input value:', fileInput.value);
+    console.log('Event type:', event.type);
+    
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        fileName.textContent = file.name;
+        fileInfo.style.display = 'block';
+        console.log('Selected file:', file.name);
+        console.log('File info displayed');
+    } else {
+        fileInfo.style.display = 'none';
+        console.log('No file selected, hiding file info');
+    }
+}
+
 function uploadChatFile() {
     const fileInput = document.getElementById('chat-file-input');
     const caption = document.getElementById('file-caption').value;
     
+    console.log('Upload attempt, files available:', fileInput.files.length);
+    
     if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
+        console.log('Uploading file:', file.name);
+        
         const formData = new FormData();
         formData.append('file', file);
         formData.append('caption', caption);
@@ -692,7 +754,10 @@ function uploadChatFile() {
             bootstrap.Modal.getInstance(document.getElementById('fileUploadModal')).hide();
             fileInput.value = '';
             document.getElementById('file-caption').value = '';
+            document.getElementById('selected-file-info').style.display = 'none';
         });
+    } else {
+        displaySystemMessage('Please select a file first');
     }
 }
 
