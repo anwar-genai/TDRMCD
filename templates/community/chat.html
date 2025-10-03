@@ -610,9 +610,11 @@ function loadRoomMessages(roomId) {
             if (data.messages) {
                 data.messages.forEach(message => {
                     displayMessage({
-                        message: message.content,
-                        username: message.sender.username,
-                        timestamp: new Date(message.timestamp).toLocaleString()
+                        message: message.message,
+                        username: message.username,
+                        timestamp: message.timestamp,
+                        message_type: message.message_type,
+                        file: message.file
                     });
                 });
             }
@@ -673,6 +675,24 @@ function toggleEmojiPicker() {
 }
 
 function attachFile() {
+    // Clear any previous file selection
+    const fileInput = document.getElementById('chat-file-input');
+    const fileInfo = document.getElementById('selected-file-info');
+    const caption = document.getElementById('file-caption');
+    
+    if (fileInput) {
+        fileInput.value = '';
+        // Force clear the file input display
+        fileInput.type = 'text';
+        fileInput.type = 'file';
+    }
+    if (fileInfo) {
+        fileInfo.style.display = 'none';
+    }
+    if (caption) {
+        caption.value = '';
+    }
+    
     const modal = new bootstrap.Modal(document.getElementById('fileUploadModal'));
     modal.show();
 }
@@ -755,6 +775,9 @@ function uploadChatFile() {
             fileInput.value = '';
             document.getElementById('file-caption').value = '';
             document.getElementById('selected-file-info').style.display = 'none';
+            // Also clear the file input display
+            fileInput.type = 'text';
+            fileInput.type = 'file';
         });
     } else {
         displaySystemMessage('Please select a file first');

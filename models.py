@@ -142,6 +142,9 @@ class ChatMessage(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     message_type = db.Column(db.String(20), default='text')  # text, image, file
+    file_url = db.Column(db.String(200))  # URL for file attachments
+    file_name = db.Column(db.String(200))  # Original filename
+    file_ext = db.Column(db.String(10))  # File extension
     
     def __repr__(self):
         return f'<ChatMessage {self.id}>'

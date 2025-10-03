@@ -460,16 +460,27 @@ def get_room_messages(room_id):
             return jsonify({'error': 'access denied'}), 403
     messages = ChatMessage.query.filter_by(room=room_id).order_by(ChatMessage.timestamp.asc()).limit(50).all()
     
-    return jsonify({
-        'messages': [{
+    def format_message(msg):
+        message_data = {
             'id': msg.id,
-            'content': msg.content,
-            'timestamp': msg.timestamp.isoformat(),
-            'sender': {
-                'id': msg.sender.id,
-                'username': msg.sender.username
+            'message': msg.content,  # Use 'message' key to match client expectation
+            'timestamp': msg.timestamp.strftime('%Y-%m-%d %H:%M:%S'),  # Match client format
+            'username': msg.sender.username,
+            'message_type': getattr(msg, 'message_type', None) or 'text'
+        }
+        
+        # For file messages, include file information
+        if getattr(msg, 'message_type', None) == 'file' and getattr(msg, 'file_url', None):
+            message_data['file'] = {
+                'name': getattr(msg, 'file_name', None) or msg.content,
+                'url': getattr(msg, 'file_url', None),
+                'ext': getattr(msg, 'file_ext', None) or ''
             }
-        } for msg in messages]
+        
+        return message_data
+    
+    return jsonify({
+        'messages': [format_message(msg) for msg in messages]
     })
 
 @community_bp.route('/chat/test')
@@ -937,7 +948,10 @@ def chat_upload():
         sender_id=current_user.id,
         room=room,
         timestamp=datetime.utcnow(),
-        message_type='file'
+        message_type='file',
+        file_url=public_url,
+        file_name=filename,
+        file_ext=ext
     )
     db.session.add(chat_message)
     db.session.commit()
