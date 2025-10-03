@@ -234,7 +234,7 @@ Protected: submissions (require login)
 """
 @app.route('/uploads/<path:subdir>/<path:filename>')
 def serve_uploaded_file(subdir, filename):
-    public_subdirs = {"avatars", "resources", "posts", "campaigns"}
+    public_subdirs = {"avatars", "resources", "posts", "campaigns", "chat"}
     protected_subdirs = {"submissions"}
 
     if subdir not in public_subdirs | protected_subdirs:

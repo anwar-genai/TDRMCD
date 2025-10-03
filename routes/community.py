@@ -902,3 +902,62 @@ def submit_file():
             flash('Please select a file to upload.', 'error')
     
     return render_template('community/submit_file.html', form=form)
+
+
+@community_bp.route('/chat/upload', methods=['POST'])
+@login_required
+def chat_upload():
+    """Upload a file to a chat room and emit a message with attachment details."""
+    room = (request.form.get('room') or 'general').strip()
+    caption = (request.form.get('caption') or '').strip()
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        return jsonify({'error': 'no_file'}), 400
+
+    # Private room access check
+    chat_room = ChatRoom.query.filter_by(room_id=room).first()
+    if chat_room and chat_room.is_private:
+        if not (current_user.is_authenticated and (current_user.is_admin() or chat_room.created_by == current_user.id)):
+            return jsonify({'error': 'access_denied'}), 403
+
+    filename = secure_filename(file.filename)
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    unique_name = f"{uuid.uuid4()}.{ext}" if ext else str(uuid.uuid4())
+
+    upload_dir = os.path.join(current_app.root_path, 'uploads', 'chat')
+    os.makedirs(upload_dir, exist_ok=True)
+    save_path = os.path.join(upload_dir, unique_name)
+    file.save(save_path)
+
+    public_url = url_for('serve_uploaded_file', subdir='chat', filename=unique_name)
+
+    # Save a chat message record
+    chat_message = ChatMessage(
+        content=caption or filename,
+        sender_id=current_user.id,
+        room=room,
+        timestamp=datetime.utcnow(),
+        message_type='file'
+    )
+    db.session.add(chat_message)
+    db.session.commit()
+
+    payload = {
+        'message': caption or filename,
+        'username': current_user.username,
+        'timestamp': chat_message.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+        'message_type': 'file',
+        'file': {
+            'name': filename,
+            'url': public_url,
+            'ext': ext
+        },
+        'room': room
+    }
+    try:
+        from app import socketio
+        socketio.emit('receive_message', payload, room=room)
+    except Exception:
+        pass
+
+    return jsonify({'ok': True, 'message': payload})

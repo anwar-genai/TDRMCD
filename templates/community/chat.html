@@ -546,12 +546,27 @@ function displayMessage(data) {
     
     const messageElement = document.createElement('div');
     messageElement.className = `message ${isOwn ? 'own' : 'other'} fade-in`;
+    let bodyHtml = '';
+    if (data.message_type === 'file' && data.file && data.file.url) {
+        const fileUrl = data.file.url;
+        const fileName = data.file.name || 'file';
+        const ext = (data.file.ext || '').toLowerCase();
+        const isImage = ['png','jpg','jpeg','gif','webp'].includes(ext);
+        bodyHtml = isImage
+            ? `<div class="mb-2"><a href="${fileUrl}" target="_blank"><img src="${fileUrl}" alt="${escapeHtml(fileName)}" style="max-width: 260px; border-radius: 6px;"></a></div>`
+            : `<div class="mb-2"><a href="${fileUrl}" target="_blank"><i class="fas fa-file me-2"></i>${escapeHtml(fileName)}</a></div>`;
+        if (data.message) {
+            bodyHtml += `<div class="message-content">${escapeHtml(data.message)}</div>`;
+        }
+    } else {
+        bodyHtml = `<div class="message-content">${escapeHtml(data.message)}</div>`;
+    }
     messageElement.innerHTML = `
         <div class="message-header">
             <strong>${escapeHtml(data.username)}</strong>
             <small class="text-muted ms-2">${data.timestamp}</small>
         </div>
-        <div class="message-content">${escapeHtml(data.message)}</div>
+        ${bodyHtml}
     `;
     
     messagesContainer.appendChild(messageElement);
@@ -654,19 +669,30 @@ function uploadChatFile() {
     
     if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
-        
-        // Here you would upload the file and send it as a message
-        console.log('Uploading file:', file.name, 'Caption:', caption);
-        
-        // For now, just show a message
-        displaySystemMessage(`${file.name} shared by {{ current_user.username }}`);
-        
-        // Close modal
-        bootstrap.Modal.getInstance(document.getElementById('fileUploadModal')).hide();
-        
-        // Reset form
-        fileInput.value = '';
-        document.getElementById('file-caption').value = '';
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('caption', caption);
+        formData.append('room', currentRoom || 'general');
+
+        fetch('/community/chat/upload', {
+            method: 'POST',
+            body: formData
+        }).then(r => r.json()).then(data => {
+            if (data && data.ok && data.message) {
+                // Optimistic render (server also emits to room)
+                displayMessage(data.message);
+                displaySystemMessage(`${file.name} shared by {{ current_user.username }}`);
+            } else {
+                displaySystemMessage('Upload failed');
+            }
+        }).catch(() => {
+            displaySystemMessage('Upload failed');
+        }).finally(() => {
+            // Close modal and reset
+            bootstrap.Modal.getInstance(document.getElementById('fileUploadModal')).hide();
+            fileInput.value = '';
+            document.getElementById('file-caption').value = '';
+        });
     }
 }
 
