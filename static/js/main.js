@@ -126,21 +126,25 @@ function loadNotifications() {
             return response.json();
         })
         .then(data => {
+            console.log('Notifications loaded:', data);
             if (data && data.notifications) {
                 updateNotificationUI(data.notifications);
             }
         })
         .catch(error => {
-            // Quietly ignore in development if endpoint not implemented
-            // console.warn('Notifications unavailable:', error.message);
+            console.warn('Notifications unavailable:', error.message);
         });
 }
 
 function updateNotificationUI(notifications) {
+    console.log('Updating notification UI with:', notifications);
     const notificationsList = document.getElementById('notifications-list');
     const notificationCount = document.getElementById('notification-count');
     
-    if (!notificationsList || !notificationCount) return;
+    if (!notificationsList || !notificationCount) {
+        console.warn('Notification elements not found');
+        return;
+    }
 
     const unreadCount = notifications.filter(n => !n.is_read).length;
     if (unreadCount > 0) {
