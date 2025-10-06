@@ -40,6 +40,10 @@ class User(UserMixin, db.Model):
     )
     notifications = db.relationship('Notification', backref='user', lazy='dynamic')
     
+    # Following relationships
+    following = db.relationship('Follow', foreign_keys='Follow.follower_id', backref='follower', lazy='dynamic')
+    followers = db.relationship('Follow', foreign_keys='Follow.followed_id', backref='followed', lazy='dynamic')
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
@@ -48,6 +52,36 @@ class User(UserMixin, db.Model):
     
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
+    
+    def is_following(self, user):
+        """Check if this user is following another user"""
+        return self.following.filter_by(followed_id=user.id).first() is not None
+    
+    def follow(self, user):
+        """Follow another user"""
+        if not self.is_following(user) and self != user:
+            follow = Follow(follower_id=self.id, followed_id=user.id)
+            db.session.add(follow)
+            db.session.commit()
+            return True
+        return False
+    
+    def unfollow(self, user):
+        """Unfollow another user"""
+        follow = self.following.filter_by(followed_id=user.id).first()
+        if follow:
+            db.session.delete(follow)
+            db.session.commit()
+            return True
+        return False
+    
+    def get_followers_count(self):
+        """Get number of followers"""
+        return self.followers.count()
+    
+    def get_following_count(self):
+        """Get number of users being followed"""
+        return self.following.count()
     
     def is_admin(self):
         return self.role == 'admin'
@@ -238,3 +272,15 @@ class ChatRoom(db.Model):
 
     def __repr__(self):
         return f'<ChatRoom {self.room_id}>'
+
+class Follow(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    follower_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    followed_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Ensure unique follow relationships
+    __table_args__ = (db.UniqueConstraint('follower_id', 'followed_id', name='unique_follow'),)
+    
+    def __repr__(self):
+        return f'<Follow {self.follower_id} -> {self.followed_id}>'

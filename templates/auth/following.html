@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.get_full_name() }} - Following{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center mb-4">
+                <a href="{{ url_for('auth.public_profile', username=user.username) }}" class="btn btn-outline-secondary me-3">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Profile
+                </a>
+                <div>
+                    <h3 class="mb-0">{{ user.get_full_name() }} is Following</h3>
+                    <div class="text-muted">{{ following.total }} user{{ 's' if following.total != 1 else '' }}</div>
+                </div>
+            </div>
+
+            {% if following.items %}
+            <div class="row g-3">
+                {% for follow in following.items %}
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    {% if follow.followed.avatar and follow.followed.avatar != 'default.jpg' %}
+                                    <img src="{{ url_for('serve_uploaded_file', subdir='avatars', filename=follow.followed.avatar) }}" 
+                                         alt="Avatar" class="rounded-circle" style="width:48px;height:48px;object-fit:cover;">
+                                    {% else %}
+                                    <div class="avatar" style="width:48px;height:48px;font-size:1rem;">
+                                        {{ follow.followed.first_name[0] if follow.followed.first_name else follow.followed.username[0] }}{{ follow.followed.last_name[0] if follow.followed.last_name else '' }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">
+                                        <a href="{{ url_for('auth.public_profile', username=follow.followed.username) }}" class="text-decoration-none">
+                                            {{ follow.followed.get_full_name() }}
+                                        </a>
+                                    </h6>
+                                    <div class="text-muted small">@{{ follow.followed.username }}</div>
+                                    <div class="text-muted small">{{ follow.created_at.strftime('%b %d, %Y') }}</div>
+                                </div>
+                                {% if current_user.is_authenticated and current_user.id != follow.followed.id %}
+                                <div>
+                                    {% if current_user.is_following(follow.followed) %}
+                                    <form action="{{ url_for('auth.unfollow_user', user_id=follow.followed.id) }}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-user-minus me-1"></i>Unfollow
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form action="{{ url_for('auth.follow_user', user_id=follow.followed.id) }}" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-user-plus me-1"></i>Follow
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if following.pages > 1 %}
+            <nav aria-label="Following pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if following.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('auth.user_following', user_id=user.id, page=following.prev_num) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="page-item disabled">
+                        <span class="page-link">Page {{ following.page }} of {{ following.pages }}</span>
+                    </li>
+                    
+                    {% if following.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('auth.user_following', user_id=user.id, page=following.next_num) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Not following anyone yet</h5>
+                <p class="text-muted">When {{ user.get_full_name() }} follows people, they'll appear here.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

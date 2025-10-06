@@ -8,21 +8,61 @@
         <div class="col-lg-8">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="me-3">
-                            {% if user.avatar and user.avatar != 'default.jpg' %}
-                            <img src="{{ url_for('serve_uploaded_file', subdir='avatars', filename=user.avatar) }}" alt="Avatar" class="rounded-circle" style="width:72px;height:72px;object-fit:cover;">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                {% if user.avatar and user.avatar != 'default.jpg' %}
+                                <img src="{{ url_for('serve_uploaded_file', subdir='avatars', filename=user.avatar) }}" alt="Avatar" class="rounded-circle" style="width:72px;height:72px;object-fit:cover;">
+                                {% else %}
+                                <div class="avatar" style="width:72px;height:72px;font-size:1.25rem;">{{ user.first_name[0] if user.first_name else user.username[0] }}{{ user.last_name[0] if user.last_name else '' }}</div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <h3 class="mb-0">{{ user.get_full_name() }}</h3>
+                                <div class="text-muted">@{{ user.username }}</div>
+                            </div>
+                        </div>
+                        
+                        {% if current_user.is_authenticated and current_user.id != user.id %}
+                        <div class="d-flex gap-2">
+                            {% if current_user.is_following(user) %}
+                            <form action="{{ url_for('auth.unfollow_user', user_id=user.id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <i class="fas fa-user-minus me-1"></i>Unfollow
+                                </button>
+                            </form>
                             {% else %}
-                            <div class="avatar" style="width:72px;height:72px;font-size:1.25rem;">{{ user.first_name[0] if user.first_name else user.username[0] }}{{ user.last_name[0] if user.last_name else '' }}</div>
+                            <form action="{{ url_for('auth.follow_user', user_id=user.id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-user-plus me-1"></i>Follow
+                                </button>
+                            </form>
                             {% endif %}
                         </div>
-                        <div>
-                            <h3 class="mb-0">{{ user.get_full_name() }}</h3>
-                            <div class="text-muted">@{{ user.username }}</div>
-                        </div>
+                        {% endif %}
                     </div>
 
                     <hr>
+
+                    <!-- Follow Stats -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4 text-center">
+                            <div class="fw-bold h5 mb-0">{{ user.get_followers_count() }}</div>
+                            <div class="text-muted small">
+                                <a href="{{ url_for('auth.user_followers', user_id=user.id) }}" class="text-decoration-none">Followers</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="fw-bold h5 mb-0">{{ user.get_following_count() }}</div>
+                            <div class="text-muted small">
+                                <a href="{{ url_for('auth.user_following', user_id=user.id) }}" class="text-decoration-none">Following</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="fw-bold h5 mb-0">{{ user.posts.count() }}</div>
+                            <div class="text-muted small">Posts</div>
+                        </div>
+                    </div>
 
                     <div class="row g-3">
                         <div class="col-md-6">

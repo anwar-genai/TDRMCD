@@ -69,6 +69,36 @@ def dashboard():
                          is_new_user=is_new_user,
                          is_long_absence=is_long_absence)
 
+@main_bp.route('/activity')
+@login_required
+def activity_feed():
+    """Show activity feed from followed users"""
+    page = request.args.get('page', 1, type=int)
+    
+    # Get IDs of users that current user is following
+    following_ids = [follow.followed_id for follow in current_user.following.all()]
+    
+    if not following_ids:
+        # If not following anyone, show recent community posts
+        recent_posts = CommunityPost.query.order_by(desc(CommunityPost.created_at)).paginate(
+            page=page, per_page=20, error_out=False
+        )
+        return render_template('main/activity_feed.html', 
+                             posts=recent_posts, 
+                             following_count=0,
+                             message="You're not following anyone yet. Here are recent posts from the community.")
+    
+    # Get recent posts from followed users
+    recent_posts = CommunityPost.query.filter(
+        CommunityPost.author_id.in_(following_ids)
+    ).order_by(desc(CommunityPost.created_at)).paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    return render_template('main/activity_feed.html', 
+                         posts=recent_posts, 
+                         following_count=len(following_ids))
+
 @main_bp.route('/search')
 def search():
     query = request.args.get('q', '')

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Feed{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0"><i class="fas fa-rss me-2"></i>Activity Feed</h2>
+                <div class="text-muted">
+                    {% if following_count > 0 %}
+                    Following {{ following_count }} user{{ 's' if following_count != 1 else '' }}
+                    {% else %}
+                    <a href="{{ url_for('community.index') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-users me-1"></i>Discover People
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if message %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>{{ message }}
+            </div>
+            {% endif %}
+
+            {% if posts.items %}
+            <div class="row g-3">
+                {% for post in posts.items %}
+                <div class="col-12">
+                    <div class="card post-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="me-3">
+                                    {% if post.author.avatar and post.author.avatar != 'default.jpg' %}
+                                    <img src="{{ url_for('serve_uploaded_file', subdir='avatars', filename=post.author.avatar) }}" 
+                                         alt="Avatar" class="rounded-circle" style="width:40px;height:40px;object-fit:cover;">
+                                    {% else %}
+                                    <div class="avatar" style="width:40px;height:40px;font-size:0.9rem;">
+                                        {{ post.author.first_name[0] if post.author.first_name else post.author.username[0] }}{{ post.author.last_name[0] if post.author.last_name else '' }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-0">
+                                                <a href="{{ url_for('auth.public_profile', username=post.author.username) }}" class="text-decoration-none">
+                                                    {{ post.author.get_full_name() }}
+                                                </a>
+                                            </h6>
+                                            <div class="text-muted small">@{{ post.author.username }}</div>
+                                        </div>
+                                        <div class="text-muted small">
+                                            {{ post.created_at.strftime('%b %d, %Y %I:%M %p') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h5 class="card-title">
+                                <a href="{{ url_for('community.post_detail', id=post.id) }}" class="text-decoration-none">
+                                    {{ post.title }}
+                                </a>
+                            </h5>
+                            
+                            <div class="card-text">
+                                {{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <div class="d-flex gap-3">
+                                    <span class="badge bg-{{ 'success' if post.category == 'health' else 'info' if post.category == 'education' else 'warning' if post.category == 'sustainability' else 'secondary' }}">
+                                        {{ post.category.title() }}
+                                    </span>
+                                    {% if post.tags %}
+                                    <span class="text-muted small">
+                                        <i class="fas fa-tags me-1"></i>{{ post.tags }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="{{ url_for('community.post_detail', id=post.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-comment me-1"></i>View Post
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if posts.pages > 1 %}
+            <nav aria-label="Activity feed pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if posts.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('main.activity_feed', page=posts.prev_num) }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="page-item disabled">
+                        <span class="page-link">Page {{ posts.page }} of {{ posts.pages }}</span>
+                    </li>
+                    
+                    {% if posts.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('main.activity_feed', page=posts.next_num) }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-rss fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No activity yet</h5>
+                <p class="text-muted">
+                    {% if following_count > 0 %}
+                    The people you follow haven't posted anything recently.
+                    {% else %}
+                    Start following people to see their posts in your activity feed.
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('community.index') }}" class="btn btn-primary">
+                    <i class="fas fa-users me-1"></i>Explore Community
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-users me-2"></i>Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('community.create_post') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create Post
+                        </a>
+                        <a href="{{ url_for('community.index') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-comments me-1"></i>Browse Community
+                        </a>
+                        <a href="{{ url_for('main.search') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-search me-1"></i>Search Resources
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% if following_count > 0 %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-heart me-2"></i>Following</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-0">You're following {{ following_count }} user{{ 's' if following_count != 1 else '' }}.</p>
+                    <a href="{{ url_for('auth.user_following', user_id=current_user.id) }}" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="fas fa-list me-1"></i>View All
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

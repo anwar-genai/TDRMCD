@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, User, CommunityPost
+from models import db, User, CommunityPost, Notification
 from sqlalchemy import desc
 from forms import LoginForm, RegistrationForm, EditProfileForm
 from datetime import datetime
@@ -177,3 +177,69 @@ def terms_of_service():
 @auth_bp.route('/privacy-policy')
 def privacy_policy():
     return render_template('auth/privacy_policy.html')
+
+@auth_bp.route('/follow/<int:user_id>', methods=['POST'])
+@login_required
+def follow_user(user_id):
+    """Follow a user"""
+    user_to_follow = User.query.get_or_404(user_id)
+    
+    if current_user == user_to_follow:
+        flash('You cannot follow yourself.', 'error')
+        return redirect(url_for('auth.public_profile', username=user_to_follow.username))
+    
+    if current_user.follow(user_to_follow):
+        # Create notification for the followed user
+        notification = Notification(
+            user_id=user_to_follow.id,
+            title='New Follower',
+            message=f'{current_user.get_full_name()} started following you.',
+            notification_type='info'
+        )
+        db.session.add(notification)
+        db.session.commit()
+        
+        flash(f'You are now following {user_to_follow.get_full_name()}.', 'success')
+    else:
+        flash(f'You are already following {user_to_follow.get_full_name()}.', 'info')
+    
+    return redirect(url_for('auth.public_profile', username=user_to_follow.username))
+
+@auth_bp.route('/unfollow/<int:user_id>', methods=['POST'])
+@login_required
+def unfollow_user(user_id):
+    """Unfollow a user"""
+    user_to_unfollow = User.query.get_or_404(user_id)
+    
+    if current_user.unfollow(user_to_unfollow):
+        flash(f'You have unfollowed {user_to_unfollow.get_full_name()}.', 'success')
+    else:
+        flash(f'You were not following {user_to_unfollow.get_full_name()}.', 'info')
+    
+    return redirect(url_for('auth.public_profile', username=user_to_unfollow.username))
+
+@auth_bp.route('/profile/<int:user_id>/followers')
+@login_required
+def user_followers(user_id):
+    """Show user's followers"""
+    user = User.query.get_or_404(user_id)
+    page = request.args.get('page', 1, type=int)
+    
+    followers = user.followers.paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    return render_template('auth/followers.html', user=user, followers=followers)
+
+@auth_bp.route('/profile/<int:user_id>/following')
+@login_required
+def user_following(user_id):
+    """Show users that this user is following"""
+    user = User.query.get_or_404(user_id)
+    page = request.args.get('page', 1, type=int)
+    
+    following = user.following.paginate(
+        page=page, per_page=20, error_out=False
+    )
+    
+    return render_template('auth/following.html', user=user, following=following)
