@@ -9,6 +9,7 @@ A full‑stack Flask application for managing and sharing information about natu
 - **Video Calling**: Secure, authenticated meetings via JaaS (Jitsi as a Service)
 - **Mapping**: Interactive map with resource markers and layers
 - **Admin & Analytics**: Admin dashboard, moderation, and basic analytics
+- **Notifications**: Real-time alerts (Socket.IO) with fallback polling
 
 See `OFFERS.md` for optional enhancements and roadmap items across search, GIS, moderation, API, performance, and more.
 
@@ -134,6 +135,41 @@ tdrmcd/
    - Community: chat rooms, posts, comments, and file submissions
    - Video Calls: start/join meetings from community pages
 4. Admin: visit `/admin` for full system management
+
+## 🔔 Notifications
+
+Real-time, deduplicated notifications with graceful fallbacks:
+
+- Delivery
+  - Live updates via Socket.IO: the server emits a `notification` event to the recipient’s private room `user_<id>`.
+  - Fallback polling every 30s hits `GET /api/notifications` if sockets are unavailable.
+
+- Follow notifications
+  - Idempotent: only one unread “New Follower” per follower at a time (no duplicates on repeated clicks).
+  - Retractable: if a user follows and then immediately unfollows, the unread follow notification is deleted.
+  - Real-time: new follow notifications appear instantly; unfollow triggers a cleanup refresh.
+
+- Endpoints
+  - `GET /api/notifications` — recent notifications for the current user
+  - `POST /api/notifications/mark_read/<id>` — mark a notification as read
+  - `POST /api/notifications/mark_all_read` — mark all as read
+  - `POST /auth/follow/<user_id>` — follow (AJAX supported; returns JSON when requested)
+  - `POST /auth/unfollow/<user_id>` — unfollow (AJAX supported; returns JSON when requested)
+
+- Client behavior (static/js/main.js)
+  - Listens for `notification` socket events:
+    - `{ kind: 'follow', notificationId, followerUsername, followerFullName, createdAt, url }` → optimistically prepends an unread item and increments the badge immediately.
+    - `{ kind: 'follow_retract' }` → refreshes the list to remove any pending follow notification(s).
+  - Polls `GET /api/notifications` as a fallback and for periodic re-sync.
+
+- UX details
+  - Bell badge updates on new/unread items; “Mark all read” is supported.
+  - Followers/Following pages support follow/unfollow via AJAX without navigation.
+
+- Troubleshooting
+  - Ensure Socket.IO client is loaded in `templates/base.html` and the server runs with Socket.IO enabled.
+  - If real-time doesn’t appear, the polling fallback will still show updates within ~30 seconds.
+  - If you changed blueprint prefixes, verify client endpoints (e.g., `/auth/follow/<id>`).
 
 **Note**: The default admin user is automatically created when you run `python run.py` or `python start.py`.
 
