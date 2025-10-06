@@ -20,6 +20,7 @@ let notifications = [];
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     initializeNotifications();
+    initializeFollowToggles();
     initializeChat();
     initializeFileUpload();
     initializeMap();
@@ -75,6 +76,43 @@ function initializeApp() {
     // Initialize popovers
     const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
     const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+}
+function initializeFollowToggles() {
+    document.addEventListener('click', async function(e) {
+        const btn = e.target.closest('.js-follow-toggle');
+        if (!btn) return;
+
+        const userId = btn.getAttribute('data-user-id');
+        const isFollowing = btn.getAttribute('data-following') === '1';
+        if (!userId) return;
+
+        try {
+            // Routes live under the auth blueprint with prefix /auth
+            const endpoint = isFollowing ? `/auth/unfollow/${userId}` : `/auth/follow/${userId}`;
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data || data.success === false) {
+                return;
+            }
+            // Toggle UI state
+            if (isFollowing) {
+                btn.setAttribute('data-following', '0');
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-primary');
+                btn.innerHTML = '<i class="fas fa-user-plus me-1"></i>Follow';
+            } else {
+                btn.setAttribute('data-following', '1');
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-secondary');
+                btn.innerHTML = '<i class="fas fa-user-minus me-1"></i>Unfollow';
+            }
+        } catch (_) {
+            // Silently ignore errors for now
+        }
+    });
 }
 
 // Notification system

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, User, CommunityPost, Notification
 from sqlalchemy import desc
@@ -186,6 +186,10 @@ def follow_user(user_id):
     
     if current_user == user_to_follow:
         flash('You cannot follow yourself.', 'error')
+        # AJAX: return JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+        if is_ajax:
+            return jsonify({'success': False, 'error': 'self_follow'}), 400
         return redirect(url_for('auth.public_profile', username=user_to_follow.username))
     
     if current_user.follow(user_to_follow):
@@ -199,9 +203,18 @@ def follow_user(user_id):
         )
         db.session.add(notification)
         db.session.commit()
-        
+
+        # AJAX: return JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+        if is_ajax:
+            return jsonify({'success': True, 'following': True})
+
         flash(f'You are now following {user_to_follow.get_full_name()}.', 'success')
     else:
+        # AJAX: return JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+        if is_ajax:
+            return jsonify({'success': True, 'following': True, 'already': True})
         flash(f'You are already following {user_to_follow.get_full_name()}.', 'info')
     
     return redirect(url_for('auth.public_profile', username=user_to_follow.username))
@@ -213,8 +226,16 @@ def unfollow_user(user_id):
     user_to_unfollow = User.query.get_or_404(user_id)
     
     if current_user.unfollow(user_to_unfollow):
+        # AJAX: return JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+        if is_ajax:
+            return jsonify({'success': True, 'following': False})
         flash(f'You have unfollowed {user_to_unfollow.get_full_name()}.', 'success')
     else:
+        # AJAX: return JSON
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
+        if is_ajax:
+            return jsonify({'success': False, 'following': False, 'already': False}), 400
         flash(f'You were not following {user_to_unfollow.get_full_name()}.', 'info')
     
     return redirect(url_for('auth.public_profile', username=user_to_unfollow.username))
