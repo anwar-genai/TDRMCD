@@ -194,15 +194,26 @@ def follow_user(user_id):
     
     if current_user.follow(user_to_follow):
         # Create notification for the followed user
-        notification = Notification(
-            user_id=user_to_follow.id,
-            title='New Follower',
-            message=f'{current_user.get_full_name()} started following you.',
-            notification_type='info',
-            url=url_for('auth.user_followers', user_id=user_to_follow.id)
-        )
-        db.session.add(notification)
-        db.session.commit()
+        # De-duplicate: if there is already an unread 'New Follower' notification from this follower, skip creating another
+        from sqlalchemy import and_
+        recent_same = Notification.query.filter(
+            Notification.user_id == user_to_follow.id,
+            Notification.notification_type == 'info',
+            Notification.title == 'New Follower',
+            Notification.is_read == False,
+            Notification.message.like(f"%{current_user.username}%")
+        ).first()
+
+        if not recent_same:
+            notification = Notification(
+                user_id=user_to_follow.id,
+                title='New Follower',
+                message=f'{current_user.get_full_name()} (@{current_user.username}) started following you.',
+                notification_type='info',
+                url=url_for('auth.user_followers', user_id=user_to_follow.id)
+            )
+            db.session.add(notification)
+            db.session.commit()
 
         # AJAX: return JSON
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
@@ -226,6 +237,21 @@ def unfollow_user(user_id):
     user_to_unfollow = User.query.get_or_404(user_id)
     
     if current_user.unfollow(user_to_unfollow):
+        # Retract any pending unread 'New Follower' notification from this follower (no noise on quick follow/unfollow)
+        try:
+            pending = Notification.query.filter(
+                Notification.user_id == user_to_unfollow.id,
+                Notification.notification_type == 'info',
+                Notification.title == 'New Follower',
+                Notification.is_read == False,
+                Notification.message.like(f"%{current_user.username}%")
+            ).all()
+            for n in pending:
+                db.session.delete(n)
+            if pending:
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
         # AJAX: return JSON
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
         if is_ajax:
