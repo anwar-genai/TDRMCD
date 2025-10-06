@@ -101,10 +101,10 @@
                         </div>
                         {% endif %}
                         <div class="d-flex gap-3 align-items-center text-muted small">
-                            <a href="#" class="text-decoration-none" onclick="return togglePostLike({{ post.id }});">
+                            <button type="button" class="btn btn-link p-0 align-baseline text-decoration-none" onclick="togglePostLike({{ post.id }}); return false;">
                                 <i class="fas fa-heart me-1 {{ 'text-danger' if current_user.is_authenticated and post.id in liked_post_ids else 'text-secondary' }}"></i>
                                 <span id="post-like-text-{{ post.id }}">{{ 'Unlike' if current_user.is_authenticated and post.id in liked_post_ids else 'Like' }}</span>
-                            </a>
+                            </button>
                             <span id="post-like-count-{{ post.id }}">{{ post.likes }}</span>
                             <a class="text-decoration-none" href="{{ url_for('community.post_detail', id=post.id) }}#comments"><i class="fas fa-comment-dots me-1"></i>Comment</a>
                             {% if current_user.is_authenticated and (current_user.id == post.author_id) %}

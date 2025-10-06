@@ -647,6 +647,45 @@ window.TDRMCD = {
     validateSearch
 };
 
+// Toggle like on a community post without page reload
+async function togglePostLike(postId) {
+    try {
+        const res = await fetch(`/community/post/${postId}/like`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await res.json();
+        if (!res.ok || !data) return false;
+
+        // Update count
+        const countEl = document.getElementById(`post-like-count-${postId}`);
+        if (countEl) {
+            countEl.textContent = data.likes;
+        }
+
+        // Update label text
+        const textEl = document.getElementById(`post-like-text-${postId}`);
+        if (textEl) {
+            textEl.textContent = data.liked ? 'Unlike' : 'Like';
+        }
+
+        // Update heart icon color
+        const card = document.getElementById(`post-like-count-${postId}`)?.closest('.post-card') || document;
+        const icon = card.querySelector(`a[onclick*="togglePostLike(${postId})"] i`);
+        if (icon) {
+            icon.classList.remove('text-secondary', 'text-danger');
+            icon.classList.add(data.liked ? 'text-danger' : 'text-secondary');
+        }
+
+        return false; // prevent navigation
+    } catch (_) {
+        return false;
+    }
+}
+
+// Expose globally for inline onclick handlers in templates
+window.togglePostLike = togglePostLike;
+
 // Navbar search enhancements
 function initializeNavbarSearch() {
     const input = document.getElementById('navbar-search');
