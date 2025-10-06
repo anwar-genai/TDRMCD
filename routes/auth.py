@@ -194,7 +194,8 @@ def follow_user(user_id):
             user_id=user_to_follow.id,
             title='New Follower',
             message=f'{current_user.get_full_name()} started following you.',
-            notification_type='info'
+            notification_type='info',
+            url=url_for('auth.user_followers', user_id=user_to_follow.id)
         )
         db.session.add(notification)
         db.session.commit()
