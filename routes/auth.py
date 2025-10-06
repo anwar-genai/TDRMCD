@@ -214,6 +214,19 @@ def follow_user(user_id):
             )
             db.session.add(notification)
             db.session.commit()
+            # Push realtime notification to the recipient's room
+            try:
+                from app import socketio
+                socketio.emit('notification', {
+                    'kind': 'follow',
+                    'notificationId': notification.id,
+                    'followerUsername': current_user.username,
+                    'followerFullName': current_user.get_full_name(),
+                    'createdAt': notification.created_at.isoformat(),
+                    'url': notification.url
+                }, room=f"user_{user_to_follow.id}")
+            except Exception:
+                pass
 
         # AJAX: return JSON
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
@@ -250,6 +263,15 @@ def unfollow_user(user_id):
                 db.session.delete(n)
             if pending:
                 db.session.commit()
+                # Notify client to refresh notifications (badge may change)
+                try:
+                    from app import socketio
+                    # If we could identify exact IDs, we would emit each; here send a retract without ID to trigger reload
+                    socketio.emit('notification', {
+                        'kind': 'follow_retract'
+                    }, room=f"user_{user_to_unfollow.id}")
+                except Exception:
+                    pass
         except Exception:
             db.session.rollback()
         # AJAX: return JSON

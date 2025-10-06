@@ -18,9 +18,18 @@ let notifications = [];
 
 // Document ready
 document.addEventListener('DOMContentLoaded', function() {
+    // Ensure socket connection even if socket.io script loads after this file
+    if (!socket && typeof io !== 'undefined') {
+        try {
+            socket = io();
+            window.socket = socket;
+        } catch (_) {}
+    }
+
     initializeApp();
     initializeNotifications();
     initializeFollowToggles();
+    initializeNotificationSocket();
     initializeChat();
     initializeFileUpload();
     initializeMap();
@@ -76,6 +85,66 @@ function initializeApp() {
     // Initialize popovers
     const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
     const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+}
+
+function initializeNotificationSocket() {
+    if (!socket) return;
+    socket.on('notification', function(payload) {
+        try {
+            if (!payload) return;
+            // Handle structured follow events for instant UI update
+            if (payload.kind === 'follow') {
+                prependFollowNotification(payload);
+                return;
+            }
+            if (payload.kind === 'follow_retract') {
+                // Fallback: just reload list to remove pending item(s)
+                loadNotifications();
+                return;
+            }
+            // Default fallback
+            loadNotifications();
+        } catch (_) {}
+    });
+}
+
+function prependFollowNotification(data) {
+    const notificationsList = document.getElementById('notifications-list');
+    const notificationCount = document.getElementById('notification-count');
+    if (!notificationsList || !notificationCount) return;
+
+    // Build item HTML
+    const href = data.url || '/';
+    const title = 'New Follower';
+    const message = `${escapeHtml(data.followerFullName)} (@${escapeHtml(data.followerUsername)}) started following you.`;
+    const createdAt = data.createdAt || new Date().toISOString();
+    const id = data.notificationId || `temp_${Date.now()}`;
+
+    const itemHtml = `
+        <a class="dropdown-item notification-item fw-bold unread-notification" href="${href}" data-notification-id="${id}">
+            <div class="d-flex">
+                <div class="flex-shrink-0 me-2">
+                    <i class="fas fa-${getNotificationIcon('info')} text-${getNotificationColor('info')}"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="fw-bold">${title}</div>
+                    <div class="small text-muted">${message}</div>
+                    <div class="small text-muted">${formatDate(createdAt)}</div>
+                </div>
+            </div>
+        </a>`;
+
+    // Remove "No notifications" placeholder if present
+    if (notificationsList.children.length === 1 && notificationsList.querySelector('.dropdown-item.text-muted')) {
+        notificationsList.innerHTML = '';
+    }
+    notificationsList.insertAdjacentHTML('afterbegin', itemHtml);
+
+    // Increment badge
+    const curr = parseInt(notificationCount.textContent || '0', 10) || 0;
+    const next = curr + 1;
+    notificationCount.textContent = String(next);
+    notificationCount.style.display = 'inline';
 }
 function initializeFollowToggles() {
     document.addEventListener('click', async function(e) {
